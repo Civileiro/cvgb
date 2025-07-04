@@ -17,9 +17,9 @@ pub enum Instruction {
     NOP,
     #[assoc( mneumonic = format_compact!("ld {}, {}", _dest, _imm16), size = 3,)]
     LDRimm { dest: R16, imm16: u16 },
-    #[assoc( mneumonic = format_compact!("ld [{}], a", _r16_mem), size = 3,)]
-    LDRmem { r16_mem: R16mem },
     #[assoc( mneumonic = format_compact!("ld a, [{}]", _r16_mem), size = 3,)]
+    LDRmem { r16_mem: R16mem },
+    #[assoc( mneumonic = format_compact!("ld [{}], a", _r16_mem), size = 3,)]
     STRmem { r16_mem: R16mem },
     #[assoc( mneumonic = format_compact!("ld [{}], sp", _imm16_mem), size = 3,)]
     STRsp { imm16_mem: u16 },
