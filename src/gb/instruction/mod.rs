@@ -15,13 +15,13 @@ pub enum Instruction {
     // Block 0
     #[assoc(mneumonic = "nop".into())]
     NOP,
-    #[assoc( mneumonic = format_compact!("ld {}, {}", _dest, _imm16), size = 3,)]
+    #[assoc( mneumonic = format_compact!("ld {}, ${:X}", _dest, _imm16), size = 3,)]
     LDRimm { dest: R16, imm16: u16 },
     #[assoc( mneumonic = format_compact!("ld a, [{}]", _r16_mem),)]
     LDRmem { r16_mem: R16mem },
     #[assoc( mneumonic = format_compact!("ld [{}], a", _r16_mem))]
     STRmem { r16_mem: R16mem },
-    #[assoc( mneumonic = format_compact!("ld [{}], sp", _imm16_mem), size = 3,)]
+    #[assoc( mneumonic = format_compact!("ld [${:X}], sp", _imm16_mem), size = 3,)]
     STRsp { imm16_mem: u16 },
     #[assoc(mneumonic = format_compact!("inc {}", _r16))]
     INCr16 { r16: R16 },
@@ -33,7 +33,7 @@ pub enum Instruction {
     INCr8 { r8: R8 },
     #[assoc(mneumonic = format_compact!("dec {}", _r8))]
     DECr8 { r8: R8 },
-    #[assoc(mneumonic = format_compact!("ld {}, {}", _r8, _imm8), size = 2)]
+    #[assoc(mneumonic = format_compact!("ld {}, ${:X}", _r8, _imm8), size = 2)]
     LDRr8 { r8: R8, imm8: u8 },
     #[assoc(mneumonic = "rlca".into())]
     RLCA,
@@ -51,9 +51,9 @@ pub enum Instruction {
     SCF,
     #[assoc(mneumonic = "ccf".into())]
     CCF,
-    #[assoc(mneumonic = format_compact!("jr {}", _imm8), size = 2)]
+    #[assoc(mneumonic = format_compact!("jr ${:X}", _imm8), size = 2)]
     JR { imm8: u8 },
-    #[assoc(mneumonic = format_compact!("jr {}, {}", _cond, _imm8), size = 2)]
+    #[assoc(mneumonic = format_compact!("jr {}, ${:X}", _cond, _imm8), size = 2)]
     JRcond { imm8: u8, cond: Cond },
     #[assoc(mneumonic = "stop".into(), size = 2)]
     STOP,
@@ -80,21 +80,21 @@ pub enum Instruction {
     #[assoc(mneumonic = format_compact!("cp a, {}", _r8))]
     CP { r8: R8 },
     // Block 3
-    #[assoc(mneumonic = format_compact!("add a, {}", _imm8), size = 2)]
+    #[assoc(mneumonic = format_compact!("add a, ${:X}", _imm8), size = 2)]
     ADDimm { imm8: u8 },
-    #[assoc(mneumonic = format_compact!("adc a, {}", _imm8), size = 2)]
+    #[assoc(mneumonic = format_compact!("adc a, ${:X}", _imm8), size = 2)]
     ADCimm { imm8: u8 },
-    #[assoc(mneumonic = format_compact!("sub a, {}", _imm8), size = 2)]
+    #[assoc(mneumonic = format_compact!("sub a, ${:X}", _imm8), size = 2)]
     SUBimm { imm8: u8 },
-    #[assoc(mneumonic = format_compact!("sbc a, {}", _imm8), size = 2)]
+    #[assoc(mneumonic = format_compact!("sbc a, ${:X}", _imm8), size = 2)]
     SBCimm { imm8: u8 },
-    #[assoc(mneumonic = format_compact!("and a, {}", _imm8), size = 2)]
+    #[assoc(mneumonic = format_compact!("and a, ${:X}", _imm8), size = 2)]
     ANDimm { imm8: u8 },
-    #[assoc(mneumonic = format_compact!("xor a, {}", _imm8), size = 2)]
+    #[assoc(mneumonic = format_compact!("xor a, ${:X}", _imm8), size = 2)]
     XORimm { imm8: u8 },
-    #[assoc(mneumonic = format_compact!("or a, {}", _imm8), size = 2)]
+    #[assoc(mneumonic = format_compact!("or a, ${:X}", _imm8), size = 2)]
     ORimm { imm8: u8 },
-    #[assoc(mneumonic = format_compact!("cp a, {}", _imm8), size = 2)]
+    #[assoc(mneumonic = format_compact!("cp a, ${:X}", _imm8), size = 2)]
     CPimm { imm8: u8 },
     #[assoc(mneumonic = format_compact!("ret {}", _cond))]
     RETcond { cond: Cond },
@@ -102,17 +102,17 @@ pub enum Instruction {
     RET,
     #[assoc(mneumonic = "reti".into())]
     RETI,
-    #[assoc(mneumonic = format_compact!("jp {}, {}", _cond, _imm16), size = 3)]
+    #[assoc(mneumonic = format_compact!("jp {}, ${:X}", _cond, _imm16), size = 3)]
     JPcond { cond: Cond, imm16: u16 },
-    #[assoc(mneumonic = format_compact!("jp {}", _imm16), size = 3)]
+    #[assoc(mneumonic = format_compact!("jp ${:X}", _imm16), size = 3)]
     JPimm { imm16: u16 },
     #[assoc(mneumonic = "jp hl".into())]
     JPhl,
-    #[assoc(mneumonic = format_compact!("call {}, {}", _cond, _imm16), size = 3)]
+    #[assoc(mneumonic = format_compact!("call {}, ${:X}", _cond, _imm16), size = 3)]
     CALLcond { cond: Cond, imm16: u16 },
-    #[assoc(mneumonic = format_compact!("call {}", _imm16), size = 3)]
+    #[assoc(mneumonic = format_compact!("call ${:X}", _imm16), size = 3)]
     CALLimm { imm16: u16 },
-    #[assoc(mneumonic = format_compact!("rst {}", _tgt3 * 8))]
+    #[assoc(mneumonic = format_compact!("rst ${:X}", _tgt3 * 8))]
     RST { tgt3: u8 },
     #[assoc(mneumonic = format_compact!("pop {}", _r16stk))]
     POP { r16stk: R16stk },
@@ -142,19 +142,19 @@ pub enum Instruction {
     SET { b3: u8, r8: R8 },
     #[assoc(mneumonic = "ldh [c], a".into())]
     STH,
-    #[assoc(mneumonic = format_compact!("ldh [{}], a", _imm8), size = 2)]
+    #[assoc(mneumonic = format_compact!("ldh [${:X}], a", _imm8), size = 2)]
     STHaddr { imm8: u8 },
-    #[assoc(mneumonic = format_compact!("ld [{}], a", _imm16), size = 3)]
+    #[assoc(mneumonic = format_compact!("ld [${:X}], a", _imm16), size = 3)]
     STRaddr { imm16: u16 },
     #[assoc(mneumonic = "ldh a, [c]".into())]
     LDH,
-    #[assoc(mneumonic = format_compact!("ldh a, [{}]", _imm8), size = 2)]
+    #[assoc(mneumonic = format_compact!("ldh a, [${:X}]", _imm8), size = 2)]
     LDHaddr { imm8: u8 },
-    #[assoc(mneumonic = format_compact!("ld a, [{}]", _imm16), size = 3)]
+    #[assoc(mneumonic = format_compact!("ld a, [${:X}]", _imm16), size = 3)]
     LDaddr { imm16: u16 },
-    #[assoc(mneumonic = format_compact!("add sp, {}", _imm8), size = 2)]
+    #[assoc(mneumonic = format_compact!("add sp, ${:X}", _imm8), size = 2)]
     ADDsp { imm8: u8 },
-    #[assoc(mneumonic = format_compact!("ld hl, sp + {}", _imm8), size = 2)]
+    #[assoc(mneumonic = format_compact!("ld hl, sp + ${:X}", _imm8), size = 2)]
     LDhl { imm8: u8 },
     #[assoc(mneumonic = "ld sp, hl".into())]
     LDsp,

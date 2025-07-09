@@ -5,7 +5,12 @@ use super::{Instruction, groupings::R8};
 impl Instruction {
     /// Execute the instruction on the CPU, returning the number of cyles spent
     pub fn execute(&self, core: &mut Core) -> u8 {
-        println!("Executing: {} ({:?})", self.mneumonic(), self);
+        // println!(
+        //     "Executing: ${:04x} {} ({:?})",
+        //     core.get_pc(),
+        //     self.mneumonic(),
+        //     self
+        // );
         match self {
             Instruction::NOP => 1,
             Instruction::LDRimm { dest, imm16 } => {
@@ -145,12 +150,16 @@ impl Instruction {
                     2
                 }
             }
-            Instruction::STOP => todo!(),
+            // just let the core deal with this krangled instruction themself
+            Instruction::STOP => unimplemented!(),
             Instruction::LDR { dest, src } => {
                 dest.set(core, src.get(core));
                 1
             }
-            Instruction::HALT => todo!(),
+            Instruction::HALT => {
+                core.set_halt();
+                1
+            }
             Instruction::ADD { r8 } => {
                 // let val = r8.get(core);
                 // let a = core.get_a();
@@ -405,7 +414,7 @@ impl Instruction {
                 let mut sp = core.get_sp();
                 let low = core.read(sp);
                 sp += 1;
-                let high = core.read(sp + 1);
+                let high = core.read(sp);
                 sp += 1;
                 core.set_sp(sp);
                 let val = ((high as u16) << 8) + low as u16;

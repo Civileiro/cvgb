@@ -15,8 +15,15 @@ pub enum DecodeError {
 
 impl Instruction {
     pub fn decode(core: &Core) -> Result<Self, DecodeError> {
-        let pc = core.get_pc();
-        let bytes = [core.read(pc), core.read(pc + 1), core.read(pc + 2)];
+        let mut pc = core.get_pc();
+        let b1 = core.read(pc);
+        if !core.halt_bug() {
+            pc += 1;
+        }
+        let b2 = core.read(pc);
+        pc += 1;
+        let b3 = core.read(pc);
+        let bytes = [b1, b2, b3];
         Self::decode_next(bytes.into_iter())
     }
     pub fn decode_next<I: Iterator<Item = u8>>(mut bytes: I) -> Result<Self, DecodeError> {
