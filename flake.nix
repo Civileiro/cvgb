@@ -11,18 +11,22 @@
       let
         pkgs = import nixpkgs { inherit system; };
 
-        rpathLibs = with pkgs; [
-          xorg.libX11
-          # xorg.libXcursor
-          # xorg.libXrandr
-          xorg.libXi
-          # xorg.libXinerama
-          # xorg.libXext
-          # xorg.libXxf86vm
-          libxkbcommon
-          libGL
-          wayland
-        ];
+        rpathLibs = with pkgs;
+          [
+            xorg.libX11
+            # xorg.libXcursor
+            xorg.libXrandr
+            xorg.libXi
+            # xorg.libXinerama
+            # xorg.libXext
+            # xorg.libXxf86vm
+            libxkbcommon
+            libGL
+            wayland
+            wayland-protocols
+            mesa
+            vulkan-loader
+          ];
 
       in {
         packages.default = pkgs.rustPlatform.buildRustPackage rec {
