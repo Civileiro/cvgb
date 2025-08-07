@@ -49,4 +49,7 @@ impl InterruptFlags {
     pub fn has_interrupt(&self) -> bool {
         self.highest_priority().is_some()
     }
+    pub fn clear(&mut self) {
+        *self = Self::new()
+    }
 }

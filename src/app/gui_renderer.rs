@@ -1,6 +1,12 @@
 use std::fmt::Debug;
 
-use winit::{event::WindowEvent, window::Window};
+use egui::ahash::HashMap;
+use winit::{
+    event::WindowEvent,
+    window::{Window, WindowId},
+};
+
+use super::{state::AppState, ui::UiLayout};
 
 pub struct EguiRenderer {
     state: egui_winit::State,
@@ -8,18 +14,25 @@ pub struct EguiRenderer {
 }
 
 impl EguiRenderer {
-    pub fn context(&self) -> &egui::Context {
-        self.state.egui_ctx()
+    pub fn context(&self) -> egui::Context {
+        self.state.egui_ctx().clone()
     }
     pub fn new(
         device: &wgpu::Device,
+        window: &winit::window::Window,
         output_color_format: wgpu::TextureFormat,
         output_depth_format: Option<wgpu::TextureFormat>,
         msaa_samples: u32,
-        window: &Window,
     ) -> Self {
         let egui_ctx = egui::Context::default();
 
+        let renderer = egui_wgpu::Renderer::new(
+            device,
+            output_color_format,
+            output_depth_format,
+            msaa_samples,
+            true,
+        );
         let state = egui_winit::State::new(
             egui_ctx,
             egui::viewport::ViewportId::ROOT,
@@ -27,13 +40,6 @@ impl EguiRenderer {
             Some(window.scale_factor() as f32),
             None,
             Some(2048),
-        );
-        let renderer = egui_wgpu::Renderer::new(
-            device,
-            output_color_format,
-            output_depth_format,
-            msaa_samples,
-            true,
         );
 
         EguiRenderer { state, renderer }
@@ -47,7 +53,8 @@ impl EguiRenderer {
         self.state.on_window_event(window, event)
     }
 
-    pub fn render(
+    #[allow(clippy::too_many_arguments)]
+    pub fn build_render_ui(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
@@ -55,17 +62,21 @@ impl EguiRenderer {
         window: &Window,
         texture_view: &wgpu::TextureView,
         screen_descriptor: egui_wgpu::ScreenDescriptor,
-        run_ui: impl FnMut(&egui::Context),
+        app_state: &mut AppState,
+        ui: UiLayout,
     ) {
         let raw_input = self.state.take_egui_input(window);
 
-        let full_output = self.context().run(raw_input, run_ui);
+        let ctx = self.context();
+        ctx.begin_pass(raw_input);
+        ui.build(&ctx, app_state);
+        let full_output = ctx.end_pass();
 
         self.state
             .handle_platform_output(window, full_output.platform_output);
         let tris = self
             .context()
-            .tessellate(full_output.shapes, self.context().pixels_per_point());
+            .tessellate(full_output.shapes, ctx.pixels_per_point());
 
         for (id, image_delta) in &full_output.textures_delta.set {
             self.renderer

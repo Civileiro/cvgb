@@ -1,7 +1,7 @@
-use crate::core::context::interrupts::{Interrupt, InterruptFlags};
+use crate::game_boy::context::interrupts::{Interrupt, InterruptFlags};
 
 use super::{
-    Cpu, CpuContext,
+    CPUState, Cpu, CpuContext,
     opcode::{Condition, Opcode, R8},
 };
 
@@ -25,21 +25,33 @@ impl CpuContext for StubContext {
         (self.read_value, InterruptFlags::new())
     }
 
-    fn cycle_write(&mut self, _: u16, _: u8) {
+    fn cycle_write_itrs(&mut self, _addr: u16, _data: u8) -> InterruptFlags {
         self.cycle();
+        InterruptFlags::new()
     }
 
-    fn cycle(&mut self) {
+    fn cycle_state_itrs(&mut self, _state: CPUState) -> InterruptFlags {
         self.cycle_count += 1;
+        InterruptFlags::new()
     }
 
     fn ack_interrupt(&mut self, _: Interrupt) {}
+
+    fn has_interrupt(&mut self) -> bool {
+        false
+    }
+
+    fn speed_switch(&mut self) {}
+
+    fn has_pressed_input(&self) -> bool {
+        false
+    }
 }
 #[test]
 fn instruction_duration() {
     for i in 0..255u8 {
         let opcode = Opcode::lookup(i);
-        if matches!(opcode, Opcode::STOP | Opcode::HALT | Opcode::INVALID) {
+        if matches!(opcode, Opcode::STOP | Opcode::INVALID) {
             // TODO: remove when instructions are implemented
             continue;
         }

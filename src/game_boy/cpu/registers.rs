@@ -37,6 +37,9 @@ impl Registers {
     pub fn inc_pc(&mut self) {
         self.pc = self.pc.wrapping_add(1);
     }
+    pub fn dec_pc(&mut self) {
+        self.pc = self.pc.wrapping_sub(1);
+    }
     pub fn get_c_flag(&self) -> bool {
         self.f.c()
     }
