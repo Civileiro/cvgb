@@ -1,4 +1,5 @@
 mod config;
+mod game_renderer;
 mod gui_renderer;
 mod renderer;
 mod state;
@@ -7,9 +8,8 @@ mod ui;
 mod windows;
 
 pub use config::Config;
-use log::log;
-use renderer::RendererState;
-use windows::AppWindow;
+use renderer::RenderState;
+use windows::AppScreen;
 
 use std::{sync::Arc, time::Duration};
 
@@ -21,7 +21,7 @@ use crate::game_boy;
 
 #[derive(Debug)]
 pub struct CvgbApp {
-    renderer_state: Option<RendererState>,
+    renderer_state: Option<RenderState>,
     timing: FrameTiming,
     state: AppState,
 }
@@ -40,20 +40,16 @@ impl Default for CvgbApp {
 }
 
 impl CvgbApp {
-    fn toggle_window(
+    fn toggle_screen(
         &mut self,
         event_loop: &winit::event_loop::ActiveEventLoop,
-        app_window: AppWindow,
+        app_screen: AppScreen,
     ) {
-        log::info!("toggling {app_window:?}");
+        log::info!("Toggling {app_screen:?}");
         let Some(render_state) = self.renderer_state.as_mut() else {
             return;
         };
-        if let Some(window_id) = self
-            .state
-            .window_registry
-            .unregister_by_app_window(app_window)
-        {
+        if let Some(window_id) = self.state.window_registry.unregister_by_screen(app_screen) {
             log::info!("Closing window {window_id:?}");
             render_state.unregister_window(window_id);
         } else {
@@ -65,12 +61,12 @@ impl CvgbApp {
             log::info!("Opening window {:?}", window.id());
             self.state
                 .window_registry
-                .register_window(window.id(), app_window);
-            render_state.register_window(window, app_window.layout());
+                .register_window(window.id(), app_screen);
+            render_state.register_window(window, app_screen);
         }
     }
     fn request_redraw(&self) {
-        if let Some(window_id) = self.state.window_registry.get_id(AppWindow::MainWindow)
+        if let Some(window_id) = self.state.window_registry.get_id(AppScreen::MainScreen)
             && let Some(render_state) = self.renderer_state.as_ref()
         {
             let window = render_state.get_window(window_id);
@@ -86,9 +82,9 @@ impl CvgbApp {
 
 impl ApplicationHandler for CvgbApp {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        let state = pollster::block_on(RendererState::new());
+        let state = pollster::block_on(RenderState::new());
         self.renderer_state = Some(state);
-        self.toggle_window(event_loop, AppWindow::MainWindow);
+        self.toggle_screen(event_loop, AppScreen::MainScreen);
 
         self.request_redraw();
     }
@@ -104,7 +100,7 @@ impl ApplicationHandler for CvgbApp {
         } = cause
         {
             let render_state = self.renderer_state.as_mut().unwrap();
-            if let Some(main_window_id) = self.state.window_registry.get_id(AppWindow::MainWindow) {
+            if let Some(main_window_id) = self.state.window_registry.get_id(AppScreen::MainScreen) {
                 let main_window = render_state.get_window(main_window_id);
                 main_window.request_redraw();
                 self.set_next_wait_time(event_loop);
@@ -133,12 +129,12 @@ impl ApplicationHandler for CvgbApp {
 
         match event {
             WindowEvent::CloseRequested => {
-                if let Some(app_window) = self.state.window_registry.get_app_window(window_id) {
+                if let Some(app_window) = self.state.window_registry.get_screen(window_id) {
                     if app_window.is_main() {
                         log::info!("Close requested on main window: Exiting app");
                         event_loop.exit();
                     } else {
-                        self.toggle_window(event_loop, app_window);
+                        self.toggle_screen(event_loop, app_window);
                     }
                 }
             }
@@ -148,7 +144,7 @@ impl ApplicationHandler for CvgbApp {
                 if !self
                     .state
                     .window_registry
-                    .get_app_window(window_id)
+                    .get_screen(window_id)
                     .map(|app_window| app_window.is_main())
                     .unwrap_or(false)
                 {
@@ -171,7 +167,7 @@ impl ApplicationHandler for CvgbApp {
                         && event.state.is_pressed()
                         && !event.repeat
                     {
-                        self.toggle_window(event_loop, AppWindow::OptionsWindow);
+                        self.toggle_screen(event_loop, AppScreen::OptionsScreen);
                     }
                 }
             }

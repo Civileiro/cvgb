@@ -8,41 +8,41 @@ use super::ui::UiLayout;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Assoc)]
 #[func(pub fn layout(&self) -> Option<UiLayout>)]
 #[func(pub fn is_main(&self) -> bool { false })]
-pub enum AppWindow {
-    #[assoc(layout = UiLayout::MainScreen, is_main = true)]
-    MainWindow,
-    #[assoc(layout = UiLayout::OptionsScreen)]
-    OptionsWindow,
+pub enum AppScreen {
+    #[assoc(layout = UiLayout::MainLayout, is_main = true)]
+    MainScreen,
+    #[assoc(layout = UiLayout::OptionsLayout)]
+    OptionsScreen,
 }
 
 #[derive(Debug, Default)]
 pub struct WindowRegistry {
-    id_to_app: HashMap<WindowId, AppWindow>,
-    app_to_id: HashMap<AppWindow, WindowId>,
+    id_to_app: HashMap<WindowId, AppScreen>,
+    app_to_id: HashMap<AppScreen, WindowId>,
 }
 
 impl WindowRegistry {
-    pub fn register_window(&mut self, window_id: WindowId, app_window: AppWindow) {
-        log::info!("registering window {window_id:?} {app_window:?}");
-        self.id_to_app.insert(window_id, app_window);
-        self.app_to_id.insert(app_window, window_id);
+    pub fn register_window(&mut self, window_id: WindowId, app_screen: AppScreen) {
+        log::info!("registering window {window_id:?} {app_screen:?}");
+        self.id_to_app.insert(window_id, app_screen);
+        self.app_to_id.insert(app_screen, window_id);
     }
-    pub fn unregister_by_id(&mut self, window_id: WindowId) -> Option<AppWindow> {
+    pub fn unregister_by_id(&mut self, window_id: WindowId) -> Option<AppScreen> {
         log::info!("unregistering window {window_id:?}");
-        self.id_to_app.remove(&window_id).inspect(|app_window| {
-            self.app_to_id.remove(app_window);
+        self.id_to_app.remove(&window_id).inspect(|app_screen| {
+            self.app_to_id.remove(app_screen);
         })
     }
-    pub fn unregister_by_app_window(&mut self, app_window: AppWindow) -> Option<WindowId> {
-        log::info!("unregistering window {app_window:?}");
-        self.app_to_id.remove(&app_window).inspect(|window_id| {
+    pub fn unregister_by_screen(&mut self, app_screen: AppScreen) -> Option<WindowId> {
+        log::info!("unregistering window {app_screen:?}");
+        self.app_to_id.remove(&app_screen).inspect(|window_id| {
             self.id_to_app.remove(window_id);
         })
     }
-    pub fn get_app_window(&self, window_id: WindowId) -> Option<AppWindow> {
+    pub fn get_screen(&self, window_id: WindowId) -> Option<AppScreen> {
         self.id_to_app.get(&window_id).copied()
     }
-    pub fn get_id(&self, app_window: AppWindow) -> Option<WindowId> {
-        self.app_to_id.get(&app_window).copied()
+    pub fn get_id(&self, app_screen: AppScreen) -> Option<WindowId> {
+        self.app_to_id.get(&app_screen).copied()
     }
 }

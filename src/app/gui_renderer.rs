@@ -6,11 +6,12 @@ use winit::{
     window::{Window, WindowId},
 };
 
-use super::{state::AppState, ui::UiLayout};
+use super::{renderer::WgpuRenderState, state::AppState, ui::UiLayout};
 
 pub struct EguiRenderer {
     state: egui_winit::State,
     renderer: egui_wgpu::Renderer,
+    layout: UiLayout,
 }
 
 impl EguiRenderer {
@@ -18,21 +19,14 @@ impl EguiRenderer {
         self.state.egui_ctx().clone()
     }
     pub fn new(
+        layout: UiLayout,
         device: &wgpu::Device,
         window: &winit::window::Window,
         output_color_format: wgpu::TextureFormat,
-        output_depth_format: Option<wgpu::TextureFormat>,
-        msaa_samples: u32,
     ) -> Self {
         let egui_ctx = egui::Context::default();
 
-        let renderer = egui_wgpu::Renderer::new(
-            device,
-            output_color_format,
-            output_depth_format,
-            msaa_samples,
-            true,
-        );
+        let renderer = egui_wgpu::Renderer::new(device, output_color_format, None, 1, true);
         let state = egui_winit::State::new(
             egui_ctx,
             egui::viewport::ViewportId::ROOT,
@@ -42,7 +36,11 @@ impl EguiRenderer {
             Some(2048),
         );
 
-        EguiRenderer { state, renderer }
+        EguiRenderer {
+            layout,
+            state,
+            renderer,
+        }
     }
 
     pub fn handle_input(
@@ -53,23 +51,20 @@ impl EguiRenderer {
         self.state.on_window_event(window, event)
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn build_render_ui(
         &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        render_state: &WgpuRenderState,
         encoder: &mut wgpu::CommandEncoder,
         window: &Window,
         texture_view: &wgpu::TextureView,
         screen_descriptor: egui_wgpu::ScreenDescriptor,
         app_state: &mut AppState,
-        ui: UiLayout,
     ) {
         let raw_input = self.state.take_egui_input(window);
 
         let ctx = self.context();
         ctx.begin_pass(raw_input);
-        ui.build(&ctx, app_state);
+        self.layout.build(&ctx, app_state);
         let full_output = ctx.end_pass();
 
         self.state
@@ -79,11 +74,20 @@ impl EguiRenderer {
             .tessellate(full_output.shapes, ctx.pixels_per_point());
 
         for (id, image_delta) in &full_output.textures_delta.set {
-            self.renderer
-                .update_texture(device, queue, *id, image_delta);
+            self.renderer.update_texture(
+                &render_state.device,
+                &render_state.queue,
+                *id,
+                image_delta,
+            );
         }
-        self.renderer
-            .update_buffers(device, queue, encoder, &tris, &screen_descriptor);
+        self.renderer.update_buffers(
+            &render_state.device,
+            &render_state.queue,
+            encoder,
+            &tris,
+            &screen_descriptor,
+        );
         let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("egui main render pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {

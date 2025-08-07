@@ -2,15 +2,22 @@ use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use winit::window::{Window, WindowId};
 
-use super::{gui_renderer::EguiRenderer, state::AppState, ui::UiLayout};
+use super::{
+    game_renderer::GameRenderer, gui_renderer::EguiRenderer, state::AppState, windows::AppScreen,
+};
 
 #[derive(Debug)]
-pub struct RendererState {
-    instance: wgpu::Instance,
-    adapter: wgpu::Adapter,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
+pub struct RenderState {
+    render_state: WgpuRenderState,
     window_data: HashMap<WindowId, WindowData>,
+}
+
+#[derive(Debug)]
+pub struct WgpuRenderState {
+    pub instance: wgpu::Instance,
+    pub adapter: wgpu::Adapter,
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
 }
 
 #[derive(Debug)]
@@ -19,33 +26,24 @@ struct WindowData {
     pub surface: wgpu::Surface<'static>,
     pub surface_config: wgpu::SurfaceConfiguration,
     pub surface_format: wgpu::TextureFormat,
-    pub ui: Option<WindowUi>,
+    pub renderer: WindowRenderer,
 }
 
-struct WindowUi {
-    layout: UiLayout,
-    renderer: EguiRenderer,
-}
-
-impl Debug for WindowUi {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("WindowUi")
-            .field("layout", &self.layout)
-            .finish()
-    }
+#[derive(Debug)]
+struct WindowRenderer {
+    app_screen: AppScreen,
+    gui_renderer: Option<EguiRenderer>,
+    game_renderer: Option<GameRenderer>,
 }
 
 impl WindowData {
-    fn new(
-        window: Arc<Window>,
-        instance: &wgpu::Instance,
-        device: &wgpu::Device,
-        adapter: &wgpu::Adapter,
-        ui_layout: Option<UiLayout>,
-    ) -> Self {
+    fn new(render_state: &WgpuRenderState, window: Arc<Window>, app_screen: AppScreen) -> Self {
         let size = window.inner_size();
-        let surface = instance.create_surface(window.clone()).unwrap();
-        let cap = surface.get_capabilities(adapter);
+        let surface = render_state
+            .instance
+            .create_surface(window.clone())
+            .unwrap();
+        let cap = surface.get_capabilities(&render_state.adapter);
         let surface_format = cap.formats[0];
         let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -58,24 +56,29 @@ impl WindowData {
             desired_maximum_frame_latency: 1,
             present_mode: wgpu::PresentMode::AutoVsync,
         };
-        surface.configure(device, &surface_config);
+        surface.configure(&render_state.device, &surface_config);
 
-        let ui = ui_layout.map(|layout| {
-            let renderer = EguiRenderer::new(device, &window, surface_format, None, 1);
-            WindowUi { layout, renderer }
-        });
+        let renderer = WindowRenderer {
+            app_screen,
+            gui_renderer: app_screen.layout().map(|layout| {
+                EguiRenderer::new(layout, &render_state.device, &window, surface_format)
+            }),
+            game_renderer: app_screen
+                .is_main()
+                .then(|| GameRenderer::new(render_state, surface_format)),
+        };
 
         WindowData {
             window,
             surface,
             surface_config,
             surface_format,
-            ui,
+            renderer,
         }
     }
 }
 
-impl RendererState {
+impl RenderState {
     pub async fn new() -> Self {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::VULKAN,
@@ -90,18 +93,20 @@ impl RendererState {
             .await
             .unwrap();
 
-        RendererState {
-            instance,
-            adapter,
-            device,
-            queue,
+        RenderState {
+            render_state: WgpuRenderState {
+                instance,
+                adapter,
+                device,
+                queue,
+            },
             window_data: Default::default(),
         }
     }
 
-    pub fn register_window(&mut self, window: Arc<Window>, ui: Option<UiLayout>) {
+    pub fn register_window(&mut self, window: Arc<Window>, app_screen: AppScreen) {
         let window_id = window.id();
-        let data = WindowData::new(window, &self.instance, &self.device, &self.adapter, ui);
+        let data = WindowData::new(&self.render_state, window, app_screen);
         self.window_data.insert(window_id, data);
     }
     pub fn unregister_window(&mut self, window_id: WindowId) {
@@ -125,7 +130,8 @@ impl RendererState {
             .expect("Window should be registered before use");
         data.surface_config.width = new_size.width;
         data.surface_config.height = new_size.height;
-        data.surface.configure(&self.device, &data.surface_config);
+        data.surface
+            .configure(&self.render_state.device, &data.surface_config);
     }
 
     pub fn handle_gui_input(
@@ -134,9 +140,9 @@ impl RendererState {
         event: &winit::event::WindowEvent,
     ) -> Option<egui_winit::EventResponse> {
         if let Some(data) = self.window_data.get_mut(&window_id)
-            && let Some(ui) = data.ui.as_mut()
+            && let Some(gui_renderer) = data.renderer.gui_renderer.as_mut()
         {
-            Some(ui.renderer.handle_input(&data.window, event))
+            Some(gui_renderer.handle_input(&data.window, event))
         } else {
             None
         }
@@ -144,7 +150,10 @@ impl RendererState {
 
     pub fn render(&mut self, state: &mut AppState) {
         for window_data in self.window_data.values_mut() {
-            let mut encoder = self.device.create_command_encoder(&Default::default());
+            let mut encoder = self
+                .render_state
+                .device
+                .create_command_encoder(&Default::default());
             let surface_texture = window_data
                 .surface
                 .get_current_texture()
@@ -157,8 +166,8 @@ impl RendererState {
                 });
 
             // Game render pass
-            {
-                let renderpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            if let Some(game_renderer) = window_data.renderer.game_renderer.as_mut() {
+                let mut renderpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: None,
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view: &texture_view,
@@ -174,9 +183,10 @@ impl RendererState {
                 });
 
                 // Draw commands
+                game_renderer.render(&mut renderpass);
             }
             // Gui render pass
-            if let Some(ui) = window_data.ui.as_mut() {
+            if let Some(gui_renderer) = window_data.renderer.gui_renderer.as_mut() {
                 let screen_descriptor = egui_wgpu::ScreenDescriptor {
                     size_in_pixels: [
                         window_data.surface_config.width,
@@ -184,19 +194,17 @@ impl RendererState {
                     ],
                     pixels_per_point: window_data.window.scale_factor() as f32,
                 };
-                ui.renderer.build_render_ui(
-                    &self.device,
-                    &self.queue,
+                gui_renderer.build_render_ui(
+                    &self.render_state,
                     &mut encoder,
                     &window_data.window,
                     &texture_view,
                     screen_descriptor,
                     state,
-                    ui.layout,
                 );
             }
             // Submit command in the queue to execute
-            self.queue.submit([encoder.finish()]);
+            self.render_state.queue.submit([encoder.finish()]);
             window_data.window.pre_present_notify();
             surface_texture.present();
         }
