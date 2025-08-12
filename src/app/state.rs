@@ -11,7 +11,7 @@ use super::windows::WindowRegistry;
 pub struct AppState {
     pub app_config: super::Config,
     pub game_state: GameState,
-    emulation_state: Option<game_boy::System>,
+    pub emulation_state: Option<game_boy::System>,
 
     pub window_registry: WindowRegistry,
 }

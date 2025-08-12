@@ -1,5 +1,6 @@
 use interrupts::{Interrupt, InterruptFlags};
 use p1::P1;
+use ppu::Ppu;
 
 use super::{
     cartridge::Cartridge, cpu::CpuContext, events::Events, input::Input, time::SystemTime,
@@ -7,6 +8,8 @@ use super::{
 
 pub mod interrupts;
 mod p1;
+mod ppu;
+pub use ppu::VideoBuffer;
 
 #[derive(Debug)]
 pub struct Context {
@@ -14,6 +17,7 @@ pub struct Context {
     events: Events,
     cartridge: Cartridge,
     boot_rom_enabled: bool,
+    ppu: Ppu,
     p1: P1,
     interrupts: InterruptFlags,
     interrupt_enable: InterruptFlags,
@@ -62,6 +66,7 @@ impl Context {
             events: Default::default(),
             cartridge,
             boot_rom_enabled: true,
+            ppu: Default::default(),
             p1: Default::default(),
             interrupts: Default::default(),
             interrupt_enable: Default::default(),
@@ -89,5 +94,8 @@ impl Context {
         if self.p1.unpress(input) {
             self.interrupts.set_joypad(true);
         }
+    }
+    pub fn get_video_buffer(&self) -> &VideoBuffer {
+        self.ppu.get_video_buffer()
     }
 }

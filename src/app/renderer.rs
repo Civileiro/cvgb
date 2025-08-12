@@ -150,10 +150,12 @@ impl RenderState {
 
     pub fn render(&mut self, state: &mut AppState) {
         for window_data in self.window_data.values_mut() {
-            let mut encoder = self
-                .render_state
-                .device
-                .create_command_encoder(&Default::default());
+            let mut encoder =
+                self.render_state
+                    .device
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("Main pass"),
+                    });
             let surface_texture = window_data
                 .surface
                 .get_current_texture()
@@ -167,8 +169,16 @@ impl RenderState {
 
             // Game render pass
             if let Some(game_renderer) = window_data.renderer.game_renderer.as_mut() {
-                let mut renderpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: None,
+                game_renderer.update(
+                    &self.render_state,
+                    state,
+                    (
+                        window_data.surface_config.width,
+                        window_data.surface_config.height,
+                    ),
+                );
+                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Main pass"),
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view: &texture_view,
                         resolve_target: None,
@@ -183,7 +193,7 @@ impl RenderState {
                 });
 
                 // Draw commands
-                game_renderer.render(&mut renderpass);
+                game_renderer.render_screen(&mut render_pass);
             }
             // Gui render pass
             if let Some(gui_renderer) = window_data.renderer.gui_renderer.as_mut() {

@@ -15,7 +15,7 @@ use std::{sync::Arc, time::Duration};
 
 use state::AppState;
 use timing::FrameTiming;
-use winit::{application::ApplicationHandler, event::WindowEvent, window::Window};
+use winit::{application::ApplicationHandler, event::WindowEvent};
 
 use crate::game_boy;
 
@@ -53,11 +53,7 @@ impl CvgbApp {
             log::info!("Closing window {window_id:?}");
             render_state.unregister_window(window_id);
         } else {
-            let window = Arc::new(
-                event_loop
-                    .create_window(Window::default_attributes())
-                    .unwrap(),
-            );
+            let window = Arc::new(event_loop.create_window(app_screen.attributes()).unwrap());
             log::info!("Opening window {:?}", window.id());
             self.state
                 .window_registry

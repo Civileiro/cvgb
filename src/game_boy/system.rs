@@ -1,7 +1,7 @@
 use super::{
     Cartridge, Input, Rom,
-    cartridge::{self, CartridgeParseError},
-    context::Context,
+    cartridge::CartridgeParseError,
+    context::{Context, VideoBuffer},
     cpu::Cpu,
     events::Events,
     time::SystemTime,
@@ -47,5 +47,8 @@ impl System {
     }
     pub fn unpress_key(&mut self, input: Input) {
         self.context.unpress_key(input);
+    }
+    pub fn get_video_buffer(&self) -> &VideoBuffer {
+        self.context.get_video_buffer()
     }
 }

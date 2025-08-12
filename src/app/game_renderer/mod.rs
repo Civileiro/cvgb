@@ -1,92 +1,52 @@
-use std::num::NonZeroU64;
+mod game;
+mod screen;
 
-use wgpu::util::DeviceExt;
+use game::GameRendererImpl;
+use screen::ScreenRenderer;
 
-use super::renderer::WgpuRenderState;
+use super::{renderer::WgpuRenderState, state::AppState};
 
 #[derive(Debug)]
 pub struct GameRenderer {
-    pipeline: wgpu::RenderPipeline,
-    bind_group: wgpu::BindGroup,
-    uniform_buffer: wgpu::Buffer,
+    // For rendering the game onto a texture
+    game_renderer_impl: GameRendererImpl,
+    // For rendering the texture onto the screen
+    screen_renderer: ScreenRenderer,
 }
 
 impl GameRenderer {
     pub fn new(wgpu_state: &WgpuRenderState, surface_format: wgpu::TextureFormat) -> Self {
         let device = &wgpu_state.device;
 
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("gb"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("./shader.wgsl").into()),
-        });
-
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("gb"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: NonZeroU64::new(16),
-                },
-                count: None,
-            }],
-        });
-
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("gb"),
-            bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[],
-        });
-
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("gb"),
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: None,
-                buffers: &[],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fs_main"),
-                targets: &[Some(surface_format.into())],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            }),
-            primitive: wgpu::PrimitiveState::default(),
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(),
-            multiview: None,
-            cache: None,
-        });
-
-        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("gb"),
-            contents: &[0; 16],
-            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
-        });
-
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("gb"),
-            layout: &bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: uniform_buffer.as_entire_binding(),
-            }],
-        });
+        let game_renderer_impl = GameRendererImpl::new(device);
+        let screen_renderer =
+            ScreenRenderer::new(device, surface_format, game_renderer_impl.output_texture());
 
         Self {
-            pipeline,
-            bind_group,
-            uniform_buffer,
+            game_renderer_impl,
+            screen_renderer,
         }
     }
 
-    pub fn render(&self, renderpass: &mut wgpu::RenderPass) {
-        renderpass.set_pipeline(&self.pipeline);
-        renderpass.set_bind_group(0, &self.bind_group, &[]);
-        renderpass.draw(0..3, 0..1);
+    pub fn update(
+        &mut self,
+        wgpu_state: &WgpuRenderState,
+        state: &AppState,
+        screen_size: (u32, u32),
+    ) {
+        // TODO
+        // self.game_renderer_impl.update(wgpu_state, state);
+        self.screen_renderer.update(wgpu_state, state, screen_size);
+    }
+
+    /// Renders the game to an internal texture
+    /// Should only be called when the game has a new frame to render
+    pub fn render_game(&self, render_pass: &mut wgpu::RenderPass) {
+        // TODO
+        // self.game_renderer_impl.render(render_pass);
+    }
+    /// Renders the game texture
+    pub fn render_screen(&self, render_pass: &mut wgpu::RenderPass) {
+        self.screen_renderer.render(render_pass);
     }
 }

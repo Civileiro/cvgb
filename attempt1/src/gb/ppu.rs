@@ -17,13 +17,13 @@ use super::{
 #[derive(Debug, Clone, Copy, Assoc)]
 #[func(pub fn duration(&self) -> u16)]
 pub enum Mode {
-    #[assoc(duration = 80)]
+    #[assoc(duration = 20)]
     OAMScan = 2,
-    #[assoc(duration = 240)]
+    #[assoc(duration = 60)]
     Drawing = 3,
-    #[assoc(duration = 136)]
+    #[assoc(duration = 34)]
     HBlank = 0,
-    #[assoc(duration = 456)]
+    #[assoc(duration = 114)]
     VBlank = 1,
 }
 
@@ -267,7 +267,7 @@ impl PPUData {
                 hi_byte >>= tile_quot;
 
                 loop {
-                    let palette_index = (hi_byte & 1) + (lo_byte & 1);
+                    let palette_index = ((hi_byte & 1) << 1) | (lo_byte & 1);
 
                     bg_pixel_info[lx as usize] = (palette_index, tile_attrs_opt);
 
@@ -556,8 +556,8 @@ impl Addressable for Ppu {
         match addr {
             0x40 => Ok(self.data.borrow().lcdc.bytes[0]),
             0x41 => Ok(self.data.borrow().get_stat().bytes[0]),
-            0x42 => Ok(self.data.borrow().scx),
-            0x43 => Ok(self.data.borrow().scy),
+            0x42 => Ok(self.data.borrow().scy),
+            0x43 => Ok(self.data.borrow().scx),
             0x44 => Ok(self.data.borrow().ly),
             0x45 => Ok(self.data.borrow().lyc),
             0x47 if self.variant.is_dmg_compatible() => Ok(self.data.borrow().bgp),
@@ -590,11 +590,11 @@ impl Addressable for Ppu {
                 Ok(())
             }
             0x42 => {
-                self.data.borrow_mut().scx = data;
+                self.data.borrow_mut().scy = data;
                 Ok(())
             }
             0x43 => {
-                self.data.borrow_mut().scy = data;
+                self.data.borrow_mut().scx = data;
                 Ok(())
             }
             0x45 => {

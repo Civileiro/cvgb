@@ -1,17 +1,34 @@
 use std::collections::HashMap;
 
 use enum_assoc::Assoc;
-use winit::window::WindowId;
+use winit::{
+    dpi::PhysicalSize,
+    window::{WindowAttributes, WindowId},
+};
+
+use crate::game_boy;
 
 use super::ui::UiLayout;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Assoc)]
-#[func(pub fn layout(&self) -> Option<UiLayout>)]
 #[func(pub fn is_main(&self) -> bool { false })]
+#[func(pub fn layout(&self) -> Option<UiLayout>)]
+#[func(pub fn attributes(&self) -> WindowAttributes { Default::default() })]
 pub enum AppScreen {
-    #[assoc(layout = UiLayout::MainLayout, is_main = true)]
+    #[assoc(
+        is_main = true,
+        layout = UiLayout::MainLayout,
+        attributes =
+            WindowAttributes::default()
+            .with_inner_size(PhysicalSize::new(
+                game_boy::WINDOW_WIDTH as u32 * 4,
+                game_boy::WINDOW_HEIGHT as u32 * 4,
+            ))
+    )]
     MainScreen,
-    #[assoc(layout = UiLayout::OptionsLayout)]
+    #[assoc(
+        layout = UiLayout::OptionsLayout,
+    )]
     OptionsScreen,
 }
 

@@ -1,10 +1,6 @@
 use std::fmt::Debug;
 
-use egui::ahash::HashMap;
-use winit::{
-    event::WindowEvent,
-    window::{Window, WindowId},
-};
+use winit::{event::WindowEvent, window::Window};
 
 use super::{renderer::WgpuRenderState, state::AppState, ui::UiLayout};
 
