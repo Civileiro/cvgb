@@ -431,6 +431,9 @@ impl CpuContext for Context {
     fn has_speed_switch_armed(&self) -> bool {
         self.key1.switch_armed()
     }
+    fn reset_div(&mut self) {
+        self.timer.reset_div();
+    }
 }
 
 pub struct PpuContextImpl<'a> {

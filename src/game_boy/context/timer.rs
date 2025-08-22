@@ -28,6 +28,9 @@ impl Timer {
     pub fn div(&self) -> u8 {
         (self.sys_clock >> 6) as u8
     }
+    pub fn reset_div(&mut self) {
+        self.sys_clock = 0
+    }
     pub fn frequency_mask(&self) -> u16 {
         match self.tac.clock_select() {
             0b00 => 0b10000000,

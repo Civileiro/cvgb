@@ -49,6 +49,9 @@ impl CpuContext for StubContext {
     fn has_speed_switch_armed(&self) -> bool {
         false
     }
+    fn reset_div(&mut self) {
+        unimplemented!()
+    }
 }
 #[test]
 fn instruction_duration() {

@@ -1,4 +1,4 @@
-use instructions::Execute;
+use instructions::{Execute, InputU8};
 use opcode::Opcode;
 use registers::Registers;
 
@@ -103,15 +103,19 @@ pub trait CpuContext {
     fn has_speed_switch_armed(&self) -> bool;
     /// Check input line for a pressed button
     fn has_pressed_input(&self) -> bool;
+    /// Reset timer
+    fn reset_div(&mut self);
 }
 
 impl Cpu {
     pub fn step(&mut self, ctx: &mut impl CpuContext) {
         if self.state.is_stop() {
-            // In STOP mode the CPU does nothing while waiting for input
-            ctx.cycle_state_itrs(self.state);
-            if ctx.has_pressed_input() {
+            if !ctx.has_pressed_input() {
+                // In STOP mode the CPU does nothing while waiting for input
+                ctx.cycle_state_itrs(self.state);
+            } else {
                 self.state.reset();
+                self.cycle_prefetch(ctx);
             }
         } else if self.rqst_itrs.has_interrupt() {
             self.rqst_itrs.clear();
@@ -213,6 +217,34 @@ impl Cpu {
     }
 
     pub fn stop(&mut self, ctx: &mut impl CpuContext) {
-        todo!()
+        if ctx.has_pressed_input() {
+            if ctx.has_interrupt() {
+                self.cycle_prefetch(ctx);
+            } else {
+                let _ = self.cycle_read_pc(ctx);
+                self.state.set_stop();
+            }
+        } else if ctx.has_speed_switch_armed() {
+            if ctx.has_interrupt() {
+                if self.ime {
+                    ctx.reset_div();
+                    ctx.speed_switch();
+                } else {
+                    log::error!("Entered CPU glitch state");
+                    todo!("crash event")
+                }
+            } else {
+                let _ = self.cycle_read_pc(ctx);
+                self.state.set_halt_timer(0x8000);
+                ctx.reset_div();
+                ctx.speed_switch();
+            }
+        } else {
+            if !ctx.has_interrupt() {
+                let _ = self.cycle_read_pc(ctx);
+            }
+            self.state.set_stop();
+            ctx.reset_div();
+        }
     }
 }
