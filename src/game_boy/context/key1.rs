@@ -13,7 +13,8 @@ pub struct Key1 {
 
 impl Key1 {
     pub fn read(self) -> u8 {
-        self.into()
+        let data: u8 = self.into();
+        data | 0b0111_1110
     }
     pub fn write(&mut self, data: u8) {
         *self = (data & 0x01).into()

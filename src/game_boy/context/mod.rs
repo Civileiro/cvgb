@@ -158,7 +158,7 @@ impl Context {
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 enum CycleStage {
-    Before,
+    First,
     AccessOamDma,
     AccessCartridge,
     AccessTimer,
@@ -166,8 +166,7 @@ enum CycleStage {
     AccessVRam,
     AccessOam,
     #[default]
-    BeforeHdma,
-    AfterHdma,
+    Last,
 }
 
 impl Context {
@@ -187,6 +186,22 @@ impl Context {
         // Nothing happens while the CPU is stopped
         if matches!(state, CPUState::Stop) {
             return res;
+        }
+        if state.is_normal() {
+            // transfer 1 or 2 bytes per cycle depending on current speed
+            let hdma_transfer_bytes = if self.key1.current_speed() { 1 } else { 2 };
+            // Transparently perform HDMA transfers
+            while self.hdma.transfer(
+                &mut self.ppu,
+                &self.cartridge,
+                &self.wram,
+                hdma_transfer_bytes,
+            ) {
+                self.cycle(Default::default(), CPUState::Halt(0), |_| ());
+            }
+        }
+        if stage == CycleStage::First {
+            res = f(self).into_data()
         }
         // if OAM DMA is active, then the PPU wont be able to read OAM
         let block_oam = if state.is_normal() {
@@ -254,23 +269,7 @@ impl Context {
                 self.hdma.signal_mode_0();
             }
         }
-        if stage == CycleStage::BeforeHdma {
-            res = f(self).into_data()
-        }
-        if state.is_normal() {
-            // transfer 1 or 2 bytes per cycle depending on current speed
-            let hdma_transfer_bytes = if self.key1.current_speed() { 1 } else { 2 };
-            // Transparently perform HDMA transfers
-            while self.hdma.transfer(
-                &mut self.ppu,
-                &self.cartridge,
-                &self.wram,
-                hdma_transfer_bytes,
-            ) {
-                self.cycle(Default::default(), CPUState::Halt(0), |_| ());
-            }
-        }
-        if stage == CycleStage::AfterHdma {
+        if stage == CycleStage::Last {
             res = f(self).into_data()
         }
         res
@@ -296,15 +295,12 @@ impl Context {
     fn oam_dma_cycle<T: IntoData>(&mut self, f: impl Fn(&mut Self) -> T) -> u8 {
         self.cycle(CycleStage::AccessOamDma, CPUState::Normal, f)
     }
-    fn after_hdma_cycle<T: IntoData>(&mut self, f: impl Fn(&mut Self) -> T) -> u8 {
-        self.cycle(CycleStage::AfterHdma, CPUState::Normal, f)
-    }
 }
 
 impl CpuContext for Context {
     fn cycle_read_itrs(&mut self, addr: u16) -> (u8, InterruptFlags) {
         let data = match addr {
-            0..0x100 | 0x200.. if self.boot_rom.is_enabled() => {
+            0..0x100 | 0x200..0x900 if self.boot_rom.is_enabled() => {
                 self.generic_cycle(|slf| slf.boot_rom.read(addr))
             }
             0x0000..0x8000 | 0xA000..0xC000 => self.cartridge_cycle(|slf| slf.cartridge.read(addr)),
@@ -334,17 +330,76 @@ impl CpuContext for Context {
                     .cycle_read_dma(&mut slf.ppu, &slf.cartridge, &slf.wram)
             }),
             0xFF4D if !self.dmg_compatible() => self.generic_cycle(|slf| slf.key1.read()),
-            0xFF55 if !self.dmg_compatible() => self.after_hdma_cycle(|slf| slf.hdma.read_hdma5()),
+            0xFF55 if !self.dmg_compatible() => self.generic_cycle(|slf| slf.hdma.read_hdma5()),
             0xFF70 if !self.dmg_compatible() => self.generic_cycle(|slf| slf.wram.read_svbk()),
             0xFF80..0xFFFF => self.generic_cycle(|slf| slf.hram.read(addr)),
             0xFFFF => self.generic_cycle(|slf| slf.interrupt_enable),
-            _ => self.generic_cycle(|_| ()),
+            _ => {
+                log::warn!("Read into unknown address {addr:04x}");
+                self.generic_cycle(|_| ())
+            }
         };
         (data, self.active_interrupts())
     }
 
     fn cycle_write_itrs(&mut self, addr: u16, data: u8) -> InterruptFlags {
-        todo!()
+        match addr {
+            0x0000..0x8000 | 0xA000..0xC000 => {
+                self.cartridge_cycle(|slf| slf.cartridge.write(addr, data))
+            }
+
+            0x8000..0xA000 => self.vram_cycle(|slf| {
+                let (ppu, mut ctx) = slf.ppu_ctx();
+                ppu.cycle_write_vram(&mut ctx, addr, data);
+            }),
+            0xC000..0xFE00 => self.wram_cycle(|slf| {
+                slf.wram.write(addr, data);
+            }),
+            0xFE00..0xFEA0 => self.oam_cycle(|slf| {
+                let (ppu, mut ctx) = slf.ppu_ctx();
+                ppu.cycle_write_oam(&mut ctx, addr, data)
+            }),
+            0xFEA0..0xFF00 => {
+                log::debug!("Write into forbidden area {addr:04x}");
+                self.generic_cycle(|_| ())
+            }
+            0xFF00 => self.generic_cycle(|slf| slf.p1.write(data)),
+            0xFF04 => self.timer_cycle(|slf| slf.timer.cycle_write_div(&mut slf.interrupts, data)),
+            0xFF05 => self.timer_cycle(|slf| slf.timer.cycle_write_tima(&mut slf.interrupts, data)),
+            0xFF06 => self.timer_cycle(|slf| slf.timer.cycle_write_tma(&mut slf.interrupts, data)),
+            0xFF07 => self.timer_cycle(|slf| slf.timer.cycle_write_tac(&mut slf.interrupts, data)),
+            0xFF0F => self.generic_cycle(|slf| slf.interrupts = (data & 0x1F).into()),
+            0xFF46 => self.oam_dma_cycle(|slf| {
+                slf.oam_dma
+                    .cycle_write_dma(&mut slf.ppu, &slf.cartridge, &slf.wram, data)
+            }),
+            0xFF4C if self.boot_rom.is_enabled() => {
+                self.generic_cycle(|slf| slf.dmg_compatibility = (data & 0b100) != 0)
+            }
+            0xFF4D if !self.dmg_compatible() => self.generic_cycle(|slf| slf.key1.write(data)),
+            0xFF51 if !self.dmg_compatible() => {
+                self.generic_cycle(|slf| slf.hdma.write_hdma_src_high(data))
+            }
+            0xFF52 if !self.dmg_compatible() => {
+                self.generic_cycle(|slf| slf.hdma.write_hdma_src_low(data))
+            }
+            0xFF53 if !self.dmg_compatible() => {
+                self.generic_cycle(|slf| slf.hdma.write_hdma_dst_high(data))
+            }
+            0xFF54 if !self.dmg_compatible() => {
+                self.generic_cycle(|slf| slf.hdma.write_hdma_dst_low(data))
+            }
+            0xFF55 if !self.dmg_compatible() => {
+                self.generic_cycle(|slf| slf.hdma.write_hdma5(&slf.ppu, data))
+            }
+            0xFF80..0xFFFF => self.generic_cycle(|slf| slf.hram.write(addr, data)),
+            0xFFFF => self.generic_cycle(|slf| slf.interrupt_enable = (data & 0x1F).into()),
+            _ => {
+                log::warn!("Write into unknown address {addr:04x}");
+                self.generic_cycle(|_| ())
+            }
+        };
+        self.active_interrupts()
     }
 
     fn cycle_state_itrs(&mut self, state: CPUState) -> InterruptFlags {

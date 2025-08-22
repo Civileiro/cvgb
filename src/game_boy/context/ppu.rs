@@ -153,7 +153,7 @@ impl Ppu {
     }
     /// Read VRAM and cycle the PPU. Address is expected to be relative to global gb memory
     /// Will read garbage if the PPU is in the wrong mode
-    pub fn cycle_read_vram(&self, ctx: &mut impl PpuContext, addr: u16) -> u8 {
+    pub fn cycle_read_vram(&mut self, ctx: &mut impl PpuContext, addr: u16) -> u8 {
         todo!()
         // self.vram[self.to_vram_address(addr) as usize]
     }
@@ -165,7 +165,7 @@ impl Ppu {
     }
     /// Read OAM and cycle the PPU. Address is expected to be relative to global gb memory
     /// Will read garbage if the PPU is in the wrong mode
-    pub fn cycle_read_oam(&self, ctx: &mut impl PpuContext, addr: u16) -> u8 {
+    pub fn cycle_read_oam(&mut self, ctx: &mut impl PpuContext, addr: u16) -> u8 {
         todo!()
         // self.oam[self.to_oam_address(addr) as usize]
     }
