@@ -1,3 +1,4 @@
+mod boot_rom;
 mod cartridge;
 mod config;
 mod context;
@@ -7,6 +8,7 @@ mod input;
 mod system;
 mod time;
 
+pub use boot_rom::BootRom;
 pub use cartridge::{Cartridge, Rom};
 pub use config::Config;
 pub use input::Input;

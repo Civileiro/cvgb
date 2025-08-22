@@ -14,7 +14,7 @@ pub struct System {
 }
 
 impl System {
-    pub fn now(rom: Rom) -> Result<Self, CartridgeParseError> {
+    pub fn new(rom: Rom) -> Result<Self, CartridgeParseError> {
         let cartridge = Cartridge::from_rom(rom)?;
         Ok(Self {
             cpu: Default::default(),
@@ -33,7 +33,7 @@ impl System {
         let target_time = self.time() + delta;
         let start_time = self.time();
         let mut events = Events::new();
-        while self.time() < target_time && !events.is_empty() {
+        while self.time() < target_time && events.is_empty() {
             events = self.step();
         }
         let elapsed_time = self.time() - start_time;

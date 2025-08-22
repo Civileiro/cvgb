@@ -35,6 +35,9 @@ impl SystemTime {
     pub fn seconds(&self) -> f64 {
         self.base_master_clock_cycles as f64 / BASE_SYSTEM_CLOCK as f64
     }
+    pub fn cycles(&self) -> u64 {
+        self.base_master_clock_cycles
+    }
 }
 
 impl Add<Self> for SystemTime {

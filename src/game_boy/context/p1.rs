@@ -32,6 +32,9 @@ impl P1 {
     fn interrupt_line(&self) -> bool {
         self.read() & 0x0F == 0x0F
     }
+    pub fn has_pressed_input(&self) -> bool {
+        !self.interrupt_line()
+    }
 
     fn watch_interrupt_line(&mut self, f: impl FnOnce(&mut Self)) -> bool {
         let old_line = self.interrupt_line();

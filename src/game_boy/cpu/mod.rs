@@ -1,4 +1,4 @@
-use instructions::{Execute, InputU8};
+use instructions::Execute;
 use opcode::Opcode;
 use registers::Registers;
 
@@ -64,6 +64,9 @@ impl CPUState {
     pub fn set_stop(&mut self) {
         *self = Self::Stop
     }
+    pub fn is_normal(&self) -> bool {
+        matches!(self, Self::Normal)
+    }
     pub fn is_halt(&self) -> bool {
         matches!(self, Self::Halt(_))
     }
@@ -97,6 +100,7 @@ pub trait CpuContext {
     fn has_interrupt(&mut self) -> bool;
     /// Switch context speed (CGB)
     fn speed_switch(&mut self);
+    fn has_speed_switch_armed(&self) -> bool;
     /// Check input line for a pressed button
     fn has_pressed_input(&self) -> bool;
 }

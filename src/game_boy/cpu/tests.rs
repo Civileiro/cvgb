@@ -46,6 +46,9 @@ impl CpuContext for StubContext {
     fn has_pressed_input(&self) -> bool {
         false
     }
+    fn has_speed_switch_armed(&self) -> bool {
+        false
+    }
 }
 #[test]
 fn instruction_duration() {
