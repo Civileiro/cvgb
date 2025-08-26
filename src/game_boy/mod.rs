@@ -13,6 +13,7 @@ pub use cartridge::{Cartridge, Rom};
 pub use config::Config;
 pub use input::Input;
 pub use system::System;
+pub use time::SystemTime;
 
 pub const WINDOW_WIDTH: u8 = 160;
 pub const WINDOW_HEIGHT: u8 = 144;

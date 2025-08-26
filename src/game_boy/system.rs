@@ -32,11 +32,13 @@ impl System {
     pub fn advance(&mut self, delta: SystemTime) -> (Events, SystemTime) {
         let target_time = self.time() + delta;
         let start_time = self.time();
-        let mut events = Events::new();
-        while self.time() < target_time && events.is_empty() {
+        let mut events: Events = Default::default();
+        log::debug!("Trying to advance system by {delta}");
+        while self.time() < target_time && events.empty() {
             events = self.step();
         }
         let elapsed_time = self.time() - start_time;
+        log::debug!("Advanced system by {elapsed_time}");
         (events, elapsed_time)
     }
     pub fn set_input(&mut self, input: Input) {

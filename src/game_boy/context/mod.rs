@@ -125,9 +125,7 @@ impl Context {
         }
     }
     pub fn fetch_clear_events(&mut self) -> Events {
-        let res = self.events;
-        self.events = Events::new();
-        res
+        std::mem::take(&mut self.events)
     }
     pub fn press_key(&mut self, input: Input) {
         if self.p1.press(input) {
@@ -165,6 +163,7 @@ enum CycleStage {
     AccessWRam,
     AccessVRam,
     AccessOam,
+    AccessPpu,
     #[default]
     Last,
 }
@@ -197,7 +196,7 @@ impl Context {
                 &self.wram,
                 hdma_transfer_bytes,
             ) {
-                self.cycle(Default::default(), CPUState::Halt(0), |_| ());
+                self.halt_cycle();
             }
         }
         if stage == CycleStage::First {
@@ -246,7 +245,10 @@ impl Context {
         }
         {
             let ppu_mode_before = self.ppu.read_mode();
-            if stage == CycleStage::AccessVRam || stage == CycleStage::AccessOam {
+            if stage == CycleStage::AccessVRam
+                || stage == CycleStage::AccessOam
+                || stage == CycleStage::AccessPpu
+            {
                 if stage == CycleStage::AccessOam && block_oam {
                     log::debug!("CPU tried addressing OAM but OAM DMA is active");
                     self.cycle_ppu();
@@ -272,7 +274,11 @@ impl Context {
         if stage == CycleStage::Last {
             res = f(self).into_data()
         }
+        self.ppu.signal_cycle_end();
         res
+    }
+    fn halt_cycle(&mut self) {
+        self.cycle(Default::default(), CPUState::Halt(0), |_| ());
     }
     fn generic_cycle<T: IntoData>(&mut self, f: impl Fn(&mut Self) -> T) -> u8 {
         self.cycle(Default::default(), CPUState::Normal, f)
@@ -288,6 +294,9 @@ impl Context {
     }
     fn oam_cycle<T: IntoData>(&mut self, f: impl Fn(&mut Self) -> T) -> u8 {
         self.cycle(CycleStage::AccessOam, CPUState::Normal, f)
+    }
+    fn ppu_cycle<T: IntoData>(&mut self, f: impl Fn(&mut Self) -> T) -> u8 {
+        self.cycle(CycleStage::AccessPpu, CPUState::Normal, f)
     }
     fn timer_cycle<T: IntoData>(&mut self, f: impl Fn(&mut Self) -> T) -> u8 {
         self.cycle(CycleStage::AccessTimer, CPUState::Normal, f)
@@ -323,14 +332,44 @@ impl CpuContext for Context {
             0xFF06 => self.timer_cycle(|slf| slf.timer.cycle_read_tma(&mut slf.interrupts)),
             0xFF07 => self.timer_cycle(|slf| slf.timer.cycle_read_tac(&mut slf.interrupts)),
             0xFF0F => self.generic_cycle(|slf| slf.interrupts),
-            0xFF40 => self.generic_cycle(|slf| slf.ppu.read_lcdc()),
-            0xFF41 => self.generic_cycle(|slf| slf.ppu.read_stat()),
+            0xFF40 => self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.read_lcdc())),
+            0xFF41 => self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.read_stat())),
+            0xFF42 => self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.scy)),
+            0xFF43 => self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.scx)),
+            0xFF44 => self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.read_ly())),
+            0xFF45 => self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.lyc)),
             0xFF46 => self.oam_dma_cycle(|slf| {
                 slf.oam_dma
                     .cycle_read_dma(&mut slf.ppu, &slf.cartridge, &slf.wram)
             }),
+            0xFF47 if self.dmg_compatible() => {
+                self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.bgp))
+            }
+            0xFF48 if self.dmg_compatible() => {
+                self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.obp0))
+            }
+            0xFF49 if self.dmg_compatible() => {
+                self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.obp1))
+            }
+            0xFF4A => self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.wy)),
+            0xFF4B => self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.wx)),
             0xFF4D if !self.dmg_compatible() => self.generic_cycle(|slf| slf.key1.read()),
             0xFF55 if !self.dmg_compatible() => self.generic_cycle(|slf| slf.hdma.read_hdma5()),
+            0xFF68 if !self.dmg_compatible() => {
+                self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.bgpi))
+            }
+            0xFF69 if !self.dmg_compatible() => {
+                self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.read_bgpd()))
+            }
+            0xFF6A if !self.dmg_compatible() => {
+                self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.ocpi))
+            }
+            0xFF6B if !self.dmg_compatible() => {
+                self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.read_ocpd()))
+            }
+            0xFF6C if self.boot_rom.is_enabled() => {
+                self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.opri as u8 | 0xFE))
+            }
             0xFF70 if !self.dmg_compatible() => self.generic_cycle(|slf| slf.wram.read_svbk()),
             0xFF80..0xFFFF => self.generic_cycle(|slf| slf.hram.read(addr)),
             0xFFFF => self.generic_cycle(|slf| slf.interrupt_enable),
@@ -369,6 +408,11 @@ impl CpuContext for Context {
             0xFF06 => self.timer_cycle(|slf| slf.timer.cycle_write_tma(&mut slf.interrupts, data)),
             0xFF07 => self.timer_cycle(|slf| slf.timer.cycle_write_tac(&mut slf.interrupts, data)),
             0xFF0F => self.generic_cycle(|slf| slf.interrupts = (data & 0x1F).into()),
+            0xFF40 => self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.write_lcdc(data))),
+            0xFF41 => self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.write_stat(data))),
+            0xFF42 => self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.scy = data)),
+            0xFF43 => self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.scx = data)),
+            0xFF45 => self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.lyc = data)),
             0xFF46 => self.oam_dma_cycle(|slf| {
                 slf.oam_dma
                     .cycle_write_dma(&mut slf.ppu, &slf.cartridge, &slf.wram, data)
@@ -391,6 +435,21 @@ impl CpuContext for Context {
             }
             0xFF55 if !self.dmg_compatible() => {
                 self.generic_cycle(|slf| slf.hdma.write_hdma5(&slf.ppu, data))
+            }
+            0xFF68 if !self.dmg_compatible() => {
+                self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.bgpi = data))
+            }
+            0xFF69 if !self.dmg_compatible() => {
+                self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.write_bgpd(data)))
+            }
+            0xFF6A if !self.dmg_compatible() => {
+                self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.ocpi = data))
+            }
+            0xFF6B if !self.dmg_compatible() => {
+                self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.write_ocpd(data)))
+            }
+            0xFF6C if self.boot_rom.is_enabled() => {
+                self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.opri = data & 1 != 0))
             }
             0xFF80..0xFFFF => self.generic_cycle(|slf| slf.hram.write(addr, data)),
             0xFFFF => self.generic_cycle(|slf| slf.interrupt_enable = (data & 0x1F).into()),
@@ -440,6 +499,7 @@ pub struct PpuContextImpl<'a> {
     events: &'a mut Events,
     itrs: &'a mut InterruptFlags,
     double_speed: bool,
+    dmg_compatible: bool,
 }
 
 impl<'a> PpuContext for PpuContextImpl<'a> {
@@ -454,19 +514,33 @@ impl<'a> PpuContext for PpuContextImpl<'a> {
     fn is_double_speed(&self) -> bool {
         self.double_speed
     }
+
+    fn is_dmg_compatible(&self) -> bool {
+        self.dmg_compatible
+    }
 }
 
 impl Context {
     fn ppu_ctx(&mut self) -> (&mut Ppu, PpuContextImpl) {
+        let dmg_compatible = self.dmg_compatible();
         let ctx = PpuContextImpl {
             events: &mut self.events,
             itrs: &mut self.interrupts,
             double_speed: self.key1.current_speed(),
+            dmg_compatible,
         };
         (&mut self.ppu, ctx)
     }
     fn cycle_ppu(&mut self) {
         let (ppu, mut ctx) = self.ppu_ctx();
         ppu.cycle(&mut ctx);
+    }
+    fn cycle_ppu_read(&mut self, f: impl FnOnce(&Ppu) -> u8) -> u8 {
+        let (ppu, mut ctx) = self.ppu_ctx();
+        ppu.cycle_read(&mut ctx, f)
+    }
+    fn cycle_ppu_write(&mut self, f: impl FnOnce(&mut Ppu)) {
+        let (ppu, mut ctx) = self.ppu_ctx();
+        ppu.cycle_write(&mut ctx, f)
     }
 }

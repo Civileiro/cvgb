@@ -1,18 +1,17 @@
-use modular_bitfield::prelude::*;
-
-#[bitfield(bits = 8)]
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Events {
     vblank: bool,
-    breakpoint: bool,
-    #[skip]
-    __: B6,
+    // breakpoint: bool,
 }
 
 impl Events {
-    pub fn is_empty(self) -> bool {
-        let byte: u8 = self.into();
-        byte == 0
+    pub fn empty(&self) -> bool {
+        !self.has_vblank()
+    }
+    pub fn signal_vblank(&mut self) {
+        self.vblank = true;
+    }
+    pub fn has_vblank(&self) -> bool {
+        self.vblank
     }
 }

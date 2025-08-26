@@ -193,6 +193,10 @@ impl RenderState {
                 });
 
                 // Draw commands
+                if state.new_game_frame_requested {
+                    game_renderer.render_game(&mut render_pass);
+                    state.new_game_frame_requested = false;
+                }
                 game_renderer.render_screen(&mut render_pass);
             }
             // Gui render pass

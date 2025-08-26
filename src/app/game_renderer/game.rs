@@ -9,12 +9,23 @@ use crate::{
 
 #[derive(Debug)]
 pub struct GameRendererImpl {
-    // For rendering the game onto a texture
+    // The game renderer updates the game texture with a new frame
+    game_texture: wgpu::Texture,
+    game_view: wgpu::TextureView,
+
+    // The texture can be assembled by software, which skips rendering
+    skip_render: bool,
+    // or by rendering with a shader
     // pipeline: wgpu::RenderPipeline,
     // bind_group: wgpu::BindGroup,
     // uniform_buffer: wgpu::Buffer,
-    game_texture: wgpu::Texture,
-    game_view: wgpu::TextureView,
+}
+
+#[derive(Debug, Default)]
+pub enum GameRenderingType {
+    #[default]
+    Software,
+    Shader,
 }
 
 impl GameRendererImpl {
@@ -30,7 +41,9 @@ impl GameRendererImpl {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8Unorm,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_DST,
             view_formats: &[],
         });
 
@@ -39,6 +52,21 @@ impl GameRendererImpl {
             usage: Some(wgpu::TextureUsages::RENDER_ATTACHMENT),
             ..Default::default()
         });
+
+        // let software_buffer_texture = device.create_texture(&wgpu::TextureDescriptor {
+        //     label: Some("gb"),
+        //     size: wgpu::Extent3d {
+        //         width: game_boy::WINDOW_WIDTH.into(),
+        //         height: game_boy::WINDOW_HEIGHT.into(),
+        //         depth_or_array_layers: 1,
+        //     },
+        //     mip_level_count: 1,
+        //     sample_count: 1,
+        //     dimension: wgpu::TextureDimension::D2,
+        //     format: wgpu::TextureFormat::Rgba8Unorm,
+        //     usage: wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::COPY_SRC,
+        //     view_formats: &[],
+        // });
 
         // let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         //     label: Some("gb"),
@@ -103,11 +131,12 @@ impl GameRendererImpl {
         // });
 
         Self {
+            game_texture,
+            game_view,
+            skip_render: false,
             // pipeline,
             // bind_group,
             // uniform_buffer,
-            game_texture,
-            game_view,
         }
     }
 
@@ -115,11 +144,50 @@ impl GameRendererImpl {
         &self.game_texture
     }
 
-    pub fn update(&self, wgpu_state: &WgpuRenderState, state: &AppState) {
-        todo!()
+    fn update_buffer_texture(&self, queue: &wgpu::Queue, rgba_buffer: &[u8]) {
+        queue.write_texture(
+            wgpu::TexelCopyTextureInfoBase {
+                texture: &self.game_texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            rgba_buffer,
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(game_boy::WINDOW_WIDTH as u32 * 4),
+                rows_per_image: Some(game_boy::WINDOW_HEIGHT as u32),
+            },
+            wgpu::Extent3d {
+                width: game_boy::WINDOW_WIDTH as u32,
+                height: game_boy::WINDOW_HEIGHT as u32,
+                depth_or_array_layers: 1,
+            },
+        );
     }
 
-    pub fn render(&self, render_pass: &mut wgpu::RenderPass) {
+    pub fn update(&mut self, wgpu_state: &WgpuRenderState, state: &AppState) {
+        match state.game_rendering_type {
+            GameRenderingType::Software => {
+                let Some(emu) = state.emulation_state.as_ref() else {
+                    return;
+                };
+                if state.new_game_frame_requested {
+                    log::debug!("Software assembling new frame...");
+                    let rgba_buffer = emu.get_video_buffer().make_rgba_buffer();
+                    self.update_buffer_texture(&wgpu_state.queue, &rgba_buffer);
+                    self.skip_render = true
+                }
+            }
+            GameRenderingType::Shader => todo!(),
+        }
+    }
+
+    pub fn render(&mut self, render_pass: &mut wgpu::RenderPass) {
+        if self.skip_render {
+            self.skip_render = false;
+            return;
+        }
         todo!()
         // render_pass.set_pipeline(&self.pipeline);
         // render_pass.set_bind_group(0, &self.bind_group, &[]);

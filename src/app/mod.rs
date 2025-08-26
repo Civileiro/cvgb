@@ -3,6 +3,7 @@ mod game_renderer;
 mod gui_renderer;
 mod renderer;
 mod state;
+mod tasks;
 mod timing;
 mod ui;
 mod windows;
@@ -146,7 +147,9 @@ impl ApplicationHandler for CvgbApp {
                 {
                     return;
                 }
+                self.state.advance_pre_render(self.timing.delta_time());
                 render_state.render(&mut self.state);
+                self.state.advance_post_render();
                 event_loop.set_control_flow(winit::event_loop::ControlFlow::WaitUntil(
                     self.timing.next_frame_start_time(),
                 ));

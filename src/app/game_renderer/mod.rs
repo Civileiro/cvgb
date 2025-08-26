@@ -4,6 +4,8 @@ mod screen;
 use game::GameRendererImpl;
 use screen::ScreenRenderer;
 
+pub use game::GameRenderingType;
+
 use super::{renderer::WgpuRenderState, state::AppState};
 
 #[derive(Debug)]
@@ -34,16 +36,14 @@ impl GameRenderer {
         state: &AppState,
         screen_size: (u32, u32),
     ) {
-        // TODO
-        // self.game_renderer_impl.update(wgpu_state, state);
+        self.game_renderer_impl.update(wgpu_state, state);
         self.screen_renderer.update(wgpu_state, state, screen_size);
     }
 
     /// Renders the game to an internal texture
     /// Should only be called when the game has a new frame to render
-    pub fn render_game(&self, render_pass: &mut wgpu::RenderPass) {
-        // TODO
-        // self.game_renderer_impl.render(render_pass);
+    pub fn render_game(&mut self, render_pass: &mut wgpu::RenderPass) {
+        self.game_renderer_impl.render(render_pass);
     }
     /// Renders the game texture
     pub fn render_screen(&self, render_pass: &mut wgpu::RenderPass) {

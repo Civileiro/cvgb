@@ -1,7 +1,4 @@
-use std::{
-    thread,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 #[derive(Debug)]
 pub struct FrameTiming {
@@ -25,5 +22,8 @@ impl FrameTiming {
         self.target_frame_time += self.frame_duration;
         self.target_frame_time = self.target_frame_time.max(now);
         self.target_frame_time
+    }
+    pub fn delta_time(&self) -> Duration {
+        self.frame_duration
     }
 }

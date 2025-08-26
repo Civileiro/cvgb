@@ -1,4 +1,7 @@
-use std::ops::{Add, AddAssign, Sub};
+use std::{
+    fmt::Display,
+    ops::{Add, AddAssign, Sub, SubAssign},
+};
 
 const BASE_SYSTEM_CLOCK: u64 = 4_194_304;
 
@@ -40,6 +43,12 @@ impl SystemTime {
     }
 }
 
+impl Display for SystemTime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SystemTime({} clocks)", self.base_master_clock_cycles)
+    }
+}
+
 impl Add<Self> for SystemTime {
     type Output = Self;
 
@@ -63,5 +72,11 @@ impl Sub<Self> for SystemTime {
         Self {
             base_master_clock_cycles: self.base_master_clock_cycles - rhs.base_master_clock_cycles,
         }
+    }
+}
+
+impl SubAssign<Self> for SystemTime {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.base_master_clock_cycles -= rhs.base_master_clock_cycles
     }
 }
