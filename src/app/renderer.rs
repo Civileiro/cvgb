@@ -203,19 +203,12 @@ impl RenderState {
             }
             // Gui render pass
             if let Some(gui_renderer) = window_data.renderer.gui_renderer.as_mut() {
-                let screen_descriptor = egui_wgpu::ScreenDescriptor {
-                    size_in_pixels: [
-                        window_data.surface_config.width,
-                        window_data.surface_config.height,
-                    ],
-                    pixels_per_point: window_data.window.scale_factor() as f32,
-                };
                 gui_renderer.build_render_ui(
                     &self.render_state,
                     &mut encoder,
                     &window_data.window,
                     &texture_view,
-                    screen_descriptor,
+                    &window_data.surface_config,
                     state,
                 );
             }

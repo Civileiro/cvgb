@@ -28,7 +28,7 @@ impl EguiRenderer {
             egui::viewport::ViewportId::ROOT,
             window,
             Some(window.scale_factor() as f32),
-            None,
+            window.theme(),
             Some(2048),
         );
 
@@ -53,21 +53,25 @@ impl EguiRenderer {
         encoder: &mut wgpu::CommandEncoder,
         window: &Window,
         texture_view: &wgpu::TextureView,
-        screen_descriptor: egui_wgpu::ScreenDescriptor,
+        surface_config: &wgpu::SurfaceConfiguration,
         app_state: &mut AppState,
     ) {
         let raw_input = self.state.take_egui_input(window);
 
-        let ctx = self.context();
-        ctx.begin_pass(raw_input);
-        self.layout.build(&ctx, app_state);
-        let full_output = ctx.end_pass();
+        let full_output = self.context().run(raw_input, |ctx| {
+            self.layout.build(ctx, app_state);
+        });
 
         self.state
             .handle_platform_output(window, full_output.platform_output);
         let tris = self
             .context()
-            .tessellate(full_output.shapes, ctx.pixels_per_point());
+            .tessellate(full_output.shapes, full_output.pixels_per_point);
+
+        let screen_descriptor = egui_wgpu::ScreenDescriptor {
+            size_in_pixels: [surface_config.width, surface_config.height],
+            pixels_per_point: full_output.pixels_per_point,
+        };
 
         for (id, image_delta) in &full_output.textures_delta.set {
             self.renderer.update_texture(
