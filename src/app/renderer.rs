@@ -22,11 +22,13 @@ pub struct WgpuRenderState {
 
 #[derive(Debug)]
 struct WindowData {
-    pub window: Arc<Window>,
     pub surface: wgpu::Surface<'static>,
     pub surface_config: wgpu::SurfaceConfiguration,
     pub surface_format: wgpu::TextureFormat,
     pub renderer: WindowRenderer,
+    // window has to be declared last so its the last to drop, other fields depend on
+    // it for them to be dropped correctly (fixes segfault)
+    pub window: Arc<Window>,
 }
 
 #[derive(Debug)]
