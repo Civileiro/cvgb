@@ -213,14 +213,14 @@ impl OpcodeAttrs {
         use R8::*;
         use Reg8::*;
         match (self.0 >> shift) & 0b111 {
-            0b000 => Reg(A),
-            0b001 => Reg(B),
-            0b010 => Reg(C),
-            0b011 => Reg(D),
-            0b100 => Reg(E),
-            0b101 => Reg(H),
-            0b110 => Reg(L),
-            0b111 => HLaddr,
+            0b000 => Reg(B),
+            0b001 => Reg(C),
+            0b010 => Reg(D),
+            0b011 => Reg(E),
+            0b100 => Reg(H),
+            0b101 => Reg(L),
+            0b110 => HLaddr,
+            0b111 => Reg(A),
             _ => unreachable!(),
         }
     }
