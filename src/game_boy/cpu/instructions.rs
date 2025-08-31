@@ -200,7 +200,7 @@ impl Cpu {
     where
         Self: InputU8<T>,
     {
-        let adj = self.read(ctx, input);
+        let adj = self.read(ctx, input) as i8;
         if let Some(cond) = cond
             && self.check_cond(cond)
         {
