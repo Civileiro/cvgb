@@ -7,9 +7,12 @@ use winit::{
 
 use crate::game_boy;
 
-use super::{game_renderer::GameRenderingType, tasks::TaskManager, windows::WindowRegistry};
+use super::{
+    game_renderer::GameRenderingType, tasks::TaskManager, ui::options_ui::OptionsUiState,
+    windows::WindowRegistry,
+};
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct AppState {
     pub app_config: super::Config,
     pub game_state: GameState,
@@ -17,15 +20,19 @@ pub struct AppState {
 
     pub window_registry: WindowRegistry,
     pub task_manager: TaskManager,
-    pub init_rom_file: Rc<RefCell<Option<Box<[u8]>>>>,
-    pub new_game_frame_requested: bool,
-    pub game_rendering_type: GameRenderingType,
+
+    pub options_ui_state: OptionsUiState,
 }
 
 /// Stores all the information about the currently-running game
 #[derive(Debug, Default)]
 pub struct GameState {
     pub gameboy_config: game_boy::Config,
+
+    pub init_rom_file: Rc<RefCell<Option<Box<[u8]>>>>,
+    pub new_game_frame_requested: bool,
+    pub game_rendering_type: GameRenderingType,
+    pub paused: bool,
 }
 
 impl AppState {
@@ -59,27 +66,27 @@ impl AppState {
         self.task_manager.poll();
 
         if let Some(rom_file) = self
+            .game_state
             .init_rom_file
             .try_borrow_mut()
             .ok()
             .and_then(|mut rfb| rfb.take())
         {
+            self.game_state.paused = self.app_config.start_paused;
             match game_boy::System::new(rom_file) {
                 Ok(emu) => self.emulation_state = Some(emu),
                 Err(err) => log::warn!("Couldn't start emulation from file: {err}"),
             }
         }
-        if let Some(emu) = self.emulation_state.as_mut() {
+        if !self.game_state.paused {
             let mut frame_duration = game_boy::SystemTime::from_seconds(delta_time.as_secs_f64());
             loop {
-                let (events, elapsed_time) = emu.advance(frame_duration);
-                if events.has_vblank() {
-                    log::debug!("VBlank detected, signaling game render");
-                    self.new_game_frame_requested = true;
+                let Some(emu) = self.emulation_state.as_mut() else {
                     break;
-                }
+                };
+                let (events, elapsed_time) = emu.advance(frame_duration);
+                self.receive_emulation_events(events);
                 if elapsed_time > frame_duration {
-                    self.new_game_frame_requested = true;
                     break;
                 } else {
                     frame_duration -= elapsed_time
@@ -87,16 +94,15 @@ impl AppState {
             }
         }
     }
+    fn receive_emulation_events(&mut self, events: game_boy::Events) {
+        if events.has_vblank() {
+            log::debug!("VBlank detected, signaling game render");
+            self.game_state.new_game_frame_requested = true;
+        }
+    }
     pub fn advance_post_render(&mut self) {}
-}
-
-impl Debug for AppState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AppState")
-            .field("app_config", &self.app_config)
-            .field("game_state", &self.game_state)
-            .field("emulation_state", &self.emulation_state)
-            .field("window_registry", &self.window_registry)
-            .finish()
+    pub fn config_gui_ctx(&self, ctx: &egui::Context) {
+        ctx.set_zoom_factor(self.app_config.gui_scale.zoom_factor());
+        ctx.set_theme(self.app_config.theme);
     }
 }

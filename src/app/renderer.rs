@@ -195,14 +195,15 @@ impl RenderState {
                 });
 
                 // Draw commands
-                if state.new_game_frame_requested {
+                if state.game_state.new_game_frame_requested {
                     game_renderer.render_game(&mut render_pass);
-                    state.new_game_frame_requested = false;
+                    state.game_state.new_game_frame_requested = false;
                 }
                 game_renderer.render_screen(&mut render_pass);
             }
             // Gui render pass
             if let Some(gui_renderer) = window_data.renderer.gui_renderer.as_mut() {
+                state.config_gui_ctx(&gui_renderer.context());
                 gui_renderer.build_render_ui(
                     &self.render_state,
                     &mut encoder,

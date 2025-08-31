@@ -6,7 +6,7 @@ pub struct BootRom {
 
 impl BootRom {
     pub fn new() -> Self {
-        let rom_bytes = include_bytes!("agb.bin");
+        let rom_bytes = include_bytes!("cgb.bin");
         Self {
             rom: rom_bytes,
             enabled: true,
@@ -22,4 +22,3 @@ impl BootRom {
         self.rom[addr as usize]
     }
 }
-

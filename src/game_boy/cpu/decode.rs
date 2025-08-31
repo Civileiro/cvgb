@@ -1,3 +1,5 @@
+use compact_str::{CompactString, format_compact};
+
 use super::{
     opcode::{CBOpcode, Condition, Opcode, R8, R16mem},
     registers::{Reg8, Reg16},
@@ -6,6 +8,26 @@ use super::{
 const OPCODE_LOOKUP_TABLE: [Opcode; 256] = Opcode::generate_table();
 
 impl Opcode {
+    pub fn disassemble(data: &[u8]) -> String {
+        let opcode = Self::lookup(data[0]);
+        if matches!(opcode, Self::PREFIX) {
+            return CBOpcode::lookup(data[1]).mneumonic().into();
+        }
+        let mneumonic = opcode.mneumonic();
+        match opcode.instruction_size() {
+            1 => mneumonic.into(),
+            2 => mneumonic.replace("imm8", &format_compact!("${:02x}", data[1])),
+            3 => {
+                let imm16 = u16::from_le_bytes([data[1], data[2]]);
+                mneumonic.replace("imm16", &format_compact!("${:04x}", imm16))
+            }
+            _ => unreachable!(),
+        }
+    }
+    pub const fn size(data: u8) -> usize {
+        Self::lookup(data).instruction_size()
+    }
+
     pub const fn lookup(data: u8) -> Self {
         OPCODE_LOOKUP_TABLE[data as usize]
     }

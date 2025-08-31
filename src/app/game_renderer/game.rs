@@ -1,7 +1,3 @@
-use std::num::NonZeroU64;
-
-use wgpu::util::DeviceExt;
-
 use crate::{
     app::{renderer::WgpuRenderState, state::AppState},
     game_boy,
@@ -167,12 +163,12 @@ impl GameRendererImpl {
     }
 
     pub fn update(&mut self, wgpu_state: &WgpuRenderState, state: &AppState) {
-        match state.game_rendering_type {
+        match state.game_state.game_rendering_type {
             GameRenderingType::Software => {
                 let Some(emu) = state.emulation_state.as_ref() else {
                     return;
                 };
-                if state.new_game_frame_requested {
+                if state.game_state.new_game_frame_requested {
                     log::debug!("Software assembling new frame...");
                     let rgba_buffer = emu.get_video_buffer().make_rgba_buffer();
                     self.update_buffer_texture(&wgpu_state.queue, &rgba_buffer);

@@ -21,7 +21,15 @@ impl System {
             context: Context::new(cartridge),
         })
     }
-
+    pub fn get_cpu(&self) -> &Cpu {
+        &self.cpu
+    }
+    pub fn get_context(&self) -> &Context {
+        &self.context
+    }
+    pub fn get_cpu_context(&self) -> (&Cpu, &Context) {
+        (&self.cpu, &self.context)
+    }
     pub fn step(&mut self) -> Events {
         self.cpu.step(&mut self.context);
         self.context.fetch_clear_events()

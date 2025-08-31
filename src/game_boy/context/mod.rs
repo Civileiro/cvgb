@@ -544,3 +544,18 @@ impl Context {
         ppu.cycle_write(&mut ctx, f)
     }
 }
+
+impl Context {
+    pub fn debug_read_memory(&self, addr: u16) -> Option<u8> {
+        let data = match addr {
+            0..0x100 | 0x200..0x900 if self.boot_rom.is_enabled() => self.boot_rom.read(addr),
+            0x0000..0x8000 | 0xA000..0xC000 => self.cartridge.read(addr),
+            0x8000..0xA000 => self.ppu.read_vram(addr),
+            0xC000..0xFE00 => self.wram.read(addr),
+            0xFE00..0xFEA0 => self.ppu.read_oam(addr),
+            0xFF80..=0xFFFE => self.hram.read(addr),
+            _ => return None,
+        };
+        Some(data)
+    }
+}

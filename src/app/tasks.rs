@@ -3,6 +3,7 @@ use futures::{
     task::LocalSpawnExt,
 };
 
+#[derive(Debug)]
 pub struct TaskManager {
     pool: LocalPool,
     spawner: LocalSpawner,

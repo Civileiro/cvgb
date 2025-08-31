@@ -21,10 +21,33 @@ pub struct Cpu {
     ime: bool,
     /// Fetched opcode
     opcode: Opcode,
+    opcode_addr: u16,
     /// Requested interrupts
     rqst_itrs: InterruptFlags,
     /// Current state
     state: CPUState,
+}
+
+impl Cpu {
+    pub fn get_registers(&self) -> Registers {
+        self.regs
+    }
+    pub fn get_ime(&self) -> bool {
+        self.ime
+    }
+    pub fn current_opcode(&self) -> (Opcode, u16) {
+        (self.opcode, self.opcode_addr)
+    }
+    fn set_opcode(&mut self, opcode: u8, opcode_addr: u16) {
+        self.opcode = Opcode::lookup(opcode);
+        self.opcode_addr = opcode_addr;
+    }
+    pub fn requested_interrupts(&self) -> InterruptFlags {
+        self.rqst_itrs
+    }
+    pub fn state(&self) -> CPUState {
+        self.state
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -151,7 +174,10 @@ impl Cpu {
             }
 
             // 5: Generic fetch
-            self.opcode = Opcode::lookup(self.cycle_read_pc(ctx));
+            let addr = self.regs.pc;
+            self.regs.inc_pc();
+            let data = self.cycle_read(ctx, addr);
+            self.set_opcode(data, addr);
         } else if self.state.is_halt() {
             // In HALT mode the CPU does nothing while waiting for an interrupt
             self.rqst_itrs = ctx.cycle_state_itrs(self.state);
@@ -165,15 +191,15 @@ impl Cpu {
         }
     }
     pub fn cycle_prefetch(&mut self, ctx: &mut impl CpuContext) {
-        let pc = self.regs.pc;
-        let (next_opcode, rqst_itrs) = ctx.cycle_read_itrs(pc);
+        let opcode_addr = self.regs.pc;
+        let (next_opcode, rqst_itrs) = ctx.cycle_read_itrs(opcode_addr);
         // If there are interrupts pending after executing HALT, the halt bug happens
         // making the program counter fail to increment
         let halt_bug = matches!(self.opcode, Opcode::HALT) && rqst_itrs.has_interrupt();
         if !halt_bug {
             self.regs.inc_pc();
         }
-        self.opcode = Opcode::lookup(next_opcode);
+        self.set_opcode(next_opcode, opcode_addr);
         if self.ime {
             self.rqst_itrs = rqst_itrs;
         }
