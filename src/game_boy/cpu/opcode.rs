@@ -118,11 +118,11 @@ pub enum Opcode {
     CALL_cond_imm16 { cond: Condition },
     #[assoc(instruction_size = 3, mneumonic = format_compact!("call imm16"))]
     CALL_imm16,
-    #[assoc(instruction_size = 1, mneumonic = format_compact!("rst"))]
+    #[assoc(instruction_size = 1, mneumonic = format_compact!("rst {_tgt3}"))]
     RST { tgt3: u8 },
-    #[assoc(instruction_size = 1, mneumonic = format_compact!("pop"))]
+    #[assoc(instruction_size = 1, mneumonic = format_compact!("pop {_r16stk}"))]
     POP { r16stk: Reg16 },
-    #[assoc(instruction_size = 1, mneumonic = format_compact!("push"))]
+    #[assoc(instruction_size = 1, mneumonic = format_compact!("push {_r16stk}"))]
     PUSH { r16stk: Reg16 },
     #[assoc(instruction_size = 2, mneumonic = format_compact!("prefix"))]
     PREFIX,
