@@ -57,7 +57,7 @@ impl CpuContext for StubContext {
 fn instruction_duration() {
     for i in 0..255u8 {
         let opcode = Opcode::lookup(i);
-        if matches!(opcode, Opcode::STOP | Opcode::INVALID) {
+        if matches!(opcode, Opcode::INVALID) {
             // TODO: remove when instructions are implemented
             continue;
         }
