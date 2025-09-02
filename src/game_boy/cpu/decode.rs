@@ -48,10 +48,10 @@ impl Opcode {
             // Block 0
             0x00 => match opcode & 0x0F {
                 0x00 | 0x08 => match opcode >> 3 {
-                    0x000 => Self::NOP,
-                    0x001 => Self::LD_imm16_sp,
-                    0x010 => Self::STOP,
-                    0x011 => Self::JR_imm8,
+                    0b000 => Self::NOP,
+                    0b001 => Self::LD_imm16_sp,
+                    0b010 => Self::STOP,
+                    0b011 => Self::JR_imm8,
                     _ => Self::JR_cond_imm8 { cond: attrs.cond() },
                 },
                 0x01 => Self::LD_r16_imm16 { dest: attrs.r16() },
