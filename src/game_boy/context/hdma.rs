@@ -2,7 +2,11 @@ use modular_bitfield::prelude::*;
 
 use crate::game_boy::Cartridge;
 
-use super::{IntoData, ppu::Ppu, wram::WorkRam};
+use super::{
+    IntoData,
+    ppu::{Ppu, VRAM_START_ADDR},
+    wram::WorkRam,
+};
 
 const HDMA_BATCH_SIZE: u8 = 16;
 
@@ -44,6 +48,12 @@ impl TransferProcedure {
     }
     fn paused(&self) -> bool {
         !self.finished() && self.mode && self.hdma_batch == 0
+    }
+    fn read_addr(&self) -> u16 {
+        self.src + self.curr
+    }
+    fn write_addr(&self) -> u16 {
+        VRAM_START_ADDR + self.dst + self.curr
     }
 }
 
@@ -155,14 +165,14 @@ impl Hdma {
         if transfer.finished() || transfer.paused() {
             return;
         }
-        let read_addr = transfer.src + transfer.curr;
+        let read_addr = transfer.read_addr();
         let data = match read_addr {
             0x0000..0x8000 | 0xA000..0xC000 => cartridge.read(read_addr),
             0xC000..0xE000 => wram.read(read_addr),
             0xE000.. => cartridge.read(read_addr - 0x4000),
             _ => ().into_data(),
         };
-        let write_addr = transfer.dst + transfer.curr;
+        let write_addr = transfer.write_addr();
         ppu.write_vram(write_addr, data);
 
         transfer.curr += 1;

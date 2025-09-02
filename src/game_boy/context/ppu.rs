@@ -10,17 +10,17 @@ use crate::game_boy::{WINDOW_HEIGHT, WINDOW_WIDTH, events::Events};
 
 use super::{IntoData, interrupts::InterruptFlags};
 
-const VRAM_START_ADDR: u16 = 0x8000;
-const VRAM_END_ADDR: u16 = 0xA000;
-const VRAM_BANK_SIZE: u16 = VRAM_END_ADDR - VRAM_START_ADDR;
+pub const VRAM_START_ADDR: u16 = 0x8000;
+pub const VRAM_END_ADDR: u16 = 0xA000;
+pub const VRAM_BANK_SIZE: u16 = VRAM_END_ADDR - VRAM_START_ADDR;
 
-const OAM_START_ADDR: u16 = 0xFE00;
-const OAM_END_ADDR: u16 = 0xFEA0;
-const OAM_SIZE: u16 = OAM_END_ADDR - OAM_START_ADDR;
+pub const OAM_START_ADDR: u16 = 0xFE00;
+pub const OAM_END_ADDR: u16 = 0xFEA0;
+pub const OAM_SIZE: u16 = OAM_END_ADDR - OAM_START_ADDR;
 
-const PALLETE_MEM_SIZE: usize = 64;
+pub const PALLETE_MEM_SIZE: usize = 64;
 
-const WINDOW_BUFFER_SIZE: usize = WINDOW_WIDTH as usize * WINDOW_HEIGHT as usize;
+pub const WINDOW_BUFFER_SIZE: usize = WINDOW_WIDTH as usize * WINDOW_HEIGHT as usize;
 
 pub struct Ppu {
     video_buffer: VideoBuffer,
