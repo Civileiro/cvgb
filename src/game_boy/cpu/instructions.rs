@@ -201,9 +201,7 @@ impl Cpu {
         Self: InputU8<T>,
     {
         let adj = self.read(ctx, input) as i8;
-        if let Some(cond) = cond
-            && self.check_cond(cond)
-        {
+        if cond.is_none_or(|cond| self.check_cond(cond)) {
             self.regs.pc = self.regs.pc.wrapping_add(adj as u16);
             self.cycle(ctx);
         }

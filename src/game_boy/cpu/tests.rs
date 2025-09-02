@@ -109,7 +109,7 @@ fn instruction_duration() {
             Opcode::CPL => 1,
             Opcode::SCF => 1,
             Opcode::CCF => 1,
-            Opcode::JR_imm8 => 2,
+            Opcode::JR_imm8 => 3,
             Opcode::JR_cond_imm8 { cond } => {
                 if matches!(cond, Condition::NZ | Condition::NC) {
                     3
