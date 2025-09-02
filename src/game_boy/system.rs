@@ -24,6 +24,9 @@ impl System {
     pub fn get_cpu(&self) -> &Cpu {
         &self.cpu
     }
+    pub fn set_breakpoint_addr(&mut self, addr: Option<u16>) {
+        self.cpu.set_breakpoint_addr(addr);
+    }
     pub fn get_context(&self) -> &Context {
         &self.context
     }

@@ -29,7 +29,7 @@ pub struct Ppu {
     /// 16 Kib Video RAM (8 KiB x 2 Banks)
     vram: Box<[u8]>,
     /// Video RAM Bank Select
-    vram_bank: u8,
+    vram_bank: bool,
     /// 160 Byte Object Attribute Memory
     oam: Box<[u8]>,
     /// OAM Access Lock
@@ -185,8 +185,8 @@ impl Default for Ppu {
 }
 
 pub trait PpuContext {
+    fn signal_vblank_interrupt(&mut self);
     fn signal_lcd_interrupt(&mut self);
-    fn signal_frame_ready(&mut self);
     fn is_double_speed(&self) -> bool;
     fn is_dmg_compatible(&self) -> bool;
 }
@@ -209,7 +209,7 @@ impl Ppu {
             Mode::HBlank => {
                 self.ly += 1;
                 if self.ly == 144 {
-                    ctx.signal_frame_ready();
+                    ctx.signal_vblank_interrupt();
                     self.switch_mode(Mode::VBlank);
                 } else {
                     self.switch_mode(Mode::OAMScan);
@@ -362,6 +362,34 @@ impl Ppu {
             self.ocpi += 1
         }
     }
+    pub fn get_bcg_palettes(&self) -> [Palette; 8] {
+        Palette::from_bytes(self.bcg_palette_mem)
+    }
+    pub fn get_obj_palettes(&self) -> [Palette; 8] {
+        Palette::from_bytes(self.obj_palette_mem)
+    }
+    pub fn write_bgp(&mut self, mut data: u8) {
+        self.bgp = data;
+        let mut bg_palette = Palette::from_bytes(self.bcg_palette_mem);
+        for i in 0..4 {
+            let id = data & 0b11;
+            data >>= 2;
+            bg_palette[0].colors[i] = match id {
+                0 => PaletteColor::white(),
+                1 => PaletteColor::light_grey(),
+                2 => PaletteColor::dark_grey(),
+                3 => PaletteColor::black(),
+                _ => unreachable!(),
+            };
+        }
+        self.bcg_palette_mem = Palette::to_bytes(bg_palette);
+    }
+    pub fn read_vbk(&self) -> u8 {
+        self.vram_bank as u8
+    }
+    pub fn write_vbk(&mut self, data: u8) {
+        self.vram_bank = data & 1 != 0
+    }
     fn switch_mode(&mut self, mode: Mode) {
         self.stat.set_ppu_mode(mode);
         self.mode_timer += mode.duration() as i32;
@@ -406,13 +434,6 @@ impl Ppu {
                 let map_x = (x / 8) as usize;
 
                 let timemap_index = map_start + map_y * 32 + map_x;
-                // let tile_attrs_opt = if !ctx.is_dmg_compatible() {
-                //     Some(BackgroundAttributes::from(
-                //         self.vram[timemap_index + 0x2000],
-                //     ))
-                // } else {
-                //     None
-                // };
                 let tile_attrs = BackgroundAttributes::from(self.vram[timemap_index + 0x2000]);
                 let tile_index = self.vram[timemap_index];
                 let tile = self.get_background_tile_bytes(tile_index, Some(tile_attrs));
@@ -533,9 +554,63 @@ struct PaletteColor {
     __: B1,
 }
 
+impl PaletteColor {
+    pub fn white() -> Self {
+        Self::new().with_red(0x1F).with_green(0x1F).with_blue(0x1F)
+    }
+    pub fn light_grey() -> Self {
+        Self::new().with_red(0x16).with_green(0x16).with_blue(0x16)
+    }
+    pub fn dark_grey() -> Self {
+        Self::new().with_red(0x0C).with_green(0x0B).with_blue(0x0B)
+    }
+    pub fn black() -> Self {
+        Self::new().with_red(0x00).with_green(0x00).with_blue(0x00)
+    }
+    pub fn rgb(self) -> RgbColor {
+        self.into()
+    }
+}
+
 #[derive(Debug, Default, Clone, Copy)]
-struct Palette {
+pub struct RgbColor {
+    red: u8,
+    green: u8,
+    blue: u8,
+}
+
+impl From<PaletteColor> for RgbColor {
+    fn from(value: PaletteColor) -> Self {
+        Self {
+            red: value.red() << 3,
+            green: value.green() << 3,
+            blue: value.blue() << 3,
+        }
+    }
+}
+
+impl From<RgbColor> for PaletteColor {
+    fn from(value: RgbColor) -> Self {
+        Self::new()
+            .with_red(value.red >> 3)
+            .with_green(value.green >> 3)
+            .with_blue(value.blue >> 3)
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Palette {
     colors: [PaletteColor; 4],
+}
+
+impl Palette {
+    pub fn from_bytes(bytes: [u8; 64]) -> [Self; 8] {
+        // SAFETY: any memory state is a valid palette
+        unsafe { std::mem::transmute(bytes) }
+    }
+    pub fn to_bytes(slf: [Self; 8]) -> [u8; 64] {
+        unsafe { std::mem::transmute(slf) }
+    }
 }
 
 pub struct VideoBuffer {
@@ -638,15 +713,12 @@ impl VideoBuffer {
         buffer.into_boxed_slice()
     }
     fn set_line_background_palettes(&mut self, ly: u8, palettes: [u8; PALLETE_MEM_SIZE]) {
-        // SAFETY: any memory state is a valid palette
-        let palettes: [Palette; 8] = unsafe { std::mem::transmute(palettes) };
-        self.lines[ly as usize].background_palettes = palettes
+        self.lines[ly as usize].background_palettes = Palette::from_bytes(palettes)
     }
     fn set_line_object_palettes(&mut self, ly: u8, palettes: [u8; PALLETE_MEM_SIZE]) {
-        // SAFETY: any memory state is a valid palette
-        let palettes: [Palette; 8] = unsafe { std::mem::transmute(palettes) };
-        self.lines[ly as usize].object_palettes = palettes
+        self.lines[ly as usize].object_palettes = Palette::from_bytes(palettes)
     }
+
     fn set_background_pixel(
         &mut self,
         lx: u8,

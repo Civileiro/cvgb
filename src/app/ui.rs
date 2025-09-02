@@ -1,8 +1,4 @@
-use std::cell::Ref;
-
 use options_ui::OptionsUiState;
-
-use crate::game_boy;
 
 use super::state::AppState;
 
@@ -88,17 +84,18 @@ fn preview_dropped_files(ctx: &egui::Context) {
 
 pub mod options_ui {
 
-    use compact_str::format_compact;
     use enum_assoc::Assoc;
 
     use crate::{
-        app::state::AppState,
+        app::state::{AppState, GameState},
         game_boy::{self, Opcode},
     };
 
     #[derive(Debug, Default)]
     pub struct OptionsUiState {
         menu: Menu,
+        breakpoint_enabled: bool,
+        breakpoint_addr: String,
     }
 
     #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Assoc)]
@@ -153,39 +150,40 @@ pub mod options_ui {
                     });
                 }
                 Menu::Debug => {
-                    egui::CentralPanel::default().show(ctx, |ui| {
-                        let Some(emu) = state.emulation_state.as_mut() else {
-                            ui.vertical_centered_justified(|ui| {
-                                ui.label("Emulation is not running...");
-                                ui.checkbox(
-                                    &mut state.app_config.start_paused,
-                                    "Start emulation paused",
-                                );
+                    egui::CentralPanel::default()
+                        .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(4.0))
+                        .show(ctx, |ui| {
+                            egui::TopBottomPanel::bottom("button_panel").show_inside(ui, |ui| {
+                                show_control_buttons(ui, state);
                             });
-                            return;
-                        };
-                        egui::SidePanel::left("cpu_panel")
-                            .resizable(true)
-                            .default_width(160.0)
-                            .width_range(120.0..=200.0)
-                            .show_inside(ui, |ui| {
-                                ui.vertical_centered(|ui| ui.heading("CPU"));
-                                show_cpu(ui, emu.get_cpu());
-                            });
-                        egui::CentralPanel::default().show_inside(ui, |ui| {
-                            show_disassembly(ui, emu);
-                            ui.horizontal(|ui| {
-                                ui.toggle_value(&mut state.game_state.paused, "Pause");
-
-                                if ui
-                                    .add_enabled(state.game_state.paused, egui::Button::new("Step"))
-                                    .clicked()
-                                {
-                                    emu.step();
-                                }
+                            let Some(emu) = state.emulation_state.as_mut() else {
+                                ui.vertical_centered_justified(|ui| {
+                                    ui.label("Emulation is not running...");
+                                    ui.checkbox(
+                                        &mut state.app_config.start_paused,
+                                        "Start emulation paused",
+                                    );
+                                });
+                                return;
+                            };
+                            egui::SidePanel::left("cpu_panel")
+                                .default_width(200.0)
+                                // .resizable(true)
+                                // .width_range(160.0..=240.0)
+                                .frame(egui::Frame::side_top_panel(ui.style()).inner_margin(2.0))
+                                .show_inside(ui, |ui| {
+                                    egui::ScrollArea::vertical().show(ui, |ui| {
+                                        ui.vertical_centered(|ui| ui.heading("CPU"));
+                                        show_cpu(ui, emu.get_cpu());
+                                        ui.separator();
+                                        show_disassembly(ui, emu);
+                                    });
+                                });
+                            egui::CentralPanel::default().show_inside(ui, |ui| {
+                                ui.vertical_centered(|ui| ui.heading("PPU"));
+                                show_ppu(ui, emu);
                             });
                         });
-                    });
                 }
             }
         }
@@ -283,8 +281,8 @@ pub mod options_ui {
 
         let mut curr_addr = center_addr;
         for _ in 0..half {
-            let Some(prev_addr) = prev_isntruction_addr(center_addr, system) else {
-                continue;
+            let Some(prev_addr) = prev_isntruction_addr(curr_addr, system) else {
+                break;
             };
             curr_addr = prev_addr
         }
@@ -308,6 +306,7 @@ pub mod options_ui {
     fn show_disassembly(ui: &mut egui::Ui, system: &game_boy::System) {
         egui::Frame::canvas(ui.style()).show(ui, |ui| {
             ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
+            ui.set_width(ui.available_width());
             let (_, curr_addr) = system.get_cpu().current_opcode();
             for (addr, instruction_str) in disassembly(system) {
                 ui.horizontal(|ui| {
@@ -321,5 +320,123 @@ pub mod options_ui {
                 });
             }
         });
+    }
+    fn show_control_buttons(
+        ui: &mut egui::Ui,
+        state: &mut AppState,
+        // emu: &mut game_boy::System,
+        // game_state: &mut GameState,
+    ) {
+        let AppState {
+            game_state,
+            emulation_state,
+            options_ui_state,
+            ..
+        } = state;
+        let Some(emu) = emulation_state else {
+            return;
+        };
+        ui.horizontal_wrapped(|ui| {
+            let paused = game_state.paused;
+            ui.toggle_value(&mut game_state.paused, if paused { "Run" } else { "Pause" });
+
+            if ui
+                .add_enabled(game_state.paused, egui::Button::new("Step"))
+                .clicked()
+            {
+                emu.step();
+            }
+            if ui
+                .add_enabled(game_state.paused, egui::Button::new("Step Frame"))
+                .clicked()
+            {
+                let delta = game_boy::SystemTime::from_seconds(1.0);
+                loop {
+                    let (events, _) = emu.advance(delta);
+                    if events.has_vblank() {
+                        game_state.new_game_frame_requested = true;
+                        for y in 0..32 {
+                            for x in 0..32 {
+                                let data = emu
+                                    .get_context()
+                                    .debug_read_memory(0x9800 + y * 16 + x)
+                                    .unwrap();
+                                print!("{data:02x} ");
+                            }
+                            println!();
+                        }
+                        break;
+                    }
+                }
+            }
+            let OptionsUiState {
+                breakpoint_enabled,
+                breakpoint_addr,
+                ..
+            } = options_ui_state;
+
+            ui.label("Enable breakpoint");
+            ui.checkbox(breakpoint_enabled, ());
+
+            let text_valid =
+                breakpoint_addr.is_empty() || u16::from_str_radix(breakpoint_addr, 16).is_ok();
+            let width = ui.fonts(|f| {
+                f.layout_no_wrap("0000".to_owned(), Default::default(), Default::default())
+                    .rect
+                    .width()
+            });
+            let addr_edit_widget = egui::TextEdit::singleline(breakpoint_addr)
+                .hint_text("0100")
+                .char_limit(4)
+                .desired_width(width);
+            ui.add_enabled(
+                *breakpoint_enabled,
+                if text_valid {
+                    addr_edit_widget
+                } else {
+                    addr_edit_widget.text_color(egui::Color32::RED)
+                },
+            );
+            if *breakpoint_enabled && let Some(addr) = u16::from_str_radix(breakpoint_addr, 16).ok()
+            {
+                game_state.breakpoint_addr = Some(addr)
+            } else {
+                game_state.breakpoint_addr = None
+            }
+        });
+    }
+
+    fn show_ppu(ui: &mut egui::Ui, system: &game_boy::System) {
+        let ppu = system.get_context().get_ppu();
+        let info = [
+            ("lcdc", ppu.read_lcdc()),
+            ("stat", ppu.read_stat()),
+            ("ly", ppu.read_ly()),
+            ("lyc", ppu.lyc),
+            ("scx", ppu.scx),
+            ("scy", ppu.scy),
+            ("wx", ppu.wx),
+            ("wy", ppu.wy),
+            ("bgpi", ppu.bgpi),
+            ("ocpi", ppu.ocpi),
+            ("vbk", ppu.read_vbk()),
+        ];
+        let cols = 2;
+        egui::Grid::new("ppu_grid")
+            .num_columns(cols)
+            .show(ui, |ui| {
+                let mut row_left = cols as i32;
+                for (label, value) in info {
+                    ui.horizontal(|ui| {
+                        ui.label(label);
+                        ui.label(format!("{value:02x}"));
+                    });
+                    row_left -= 1;
+                    if row_left <= 0 {
+                        ui.end_row();
+                        row_left = cols as i32;
+                    }
+                }
+            });
     }
 }

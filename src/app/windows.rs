@@ -28,6 +28,9 @@ pub enum AppScreen {
     MainScreen,
     #[assoc(
         layout = UiLayout::OptionsLayout,
+        attributes =
+            WindowAttributes::default()
+            .with_inner_size(PhysicalSize::new(600, 700))
     )]
     OptionsScreen,
 }

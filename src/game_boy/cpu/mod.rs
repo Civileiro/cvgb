@@ -1,8 +1,11 @@
-use instructions::{Execute, InputU8};
+use instructions::Execute;
 use opcode::Opcode;
 use registers::Registers;
 
-use super::context::interrupts::{Interrupt, InterruptFlags};
+use super::{
+    context::interrupts::{Interrupt, InterruptFlags},
+    events::Event,
+};
 
 mod decode;
 mod instructions;
@@ -26,6 +29,9 @@ pub struct Cpu {
     rqst_itrs: InterruptFlags,
     /// Current state
     state: CPUState,
+
+    // Breakpoint Config
+    break_addr: Option<u16>,
 }
 
 impl Cpu {
@@ -38,9 +44,17 @@ impl Cpu {
     pub fn current_opcode(&self) -> (Opcode, u16) {
         (self.opcode, self.opcode_addr)
     }
-    fn set_opcode(&mut self, opcode: u8, opcode_addr: u16) {
+    fn set_opcode(&mut self, ctx: &mut impl CpuContext, opcode: u8, opcode_addr: u16) {
         self.opcode = Opcode::lookup(opcode);
         self.opcode_addr = opcode_addr;
+        if let Some(baddr) = self.break_addr
+            && baddr == opcode_addr
+        {
+            ctx.signal_event(Event::Breakpoint);
+        }
+    }
+    pub fn set_breakpoint_addr(&mut self, addr: Option<u16>) {
+        self.break_addr = addr
     }
     pub fn requested_interrupts(&self) -> InterruptFlags {
         self.rqst_itrs
@@ -128,6 +142,8 @@ pub trait CpuContext {
     fn has_pressed_input(&self) -> bool;
     /// Reset timer
     fn reset_div(&mut self);
+    /// Signal an event happening
+    fn signal_event(&mut self, event: Event);
 }
 
 impl Cpu {
@@ -177,7 +193,7 @@ impl Cpu {
             let addr = self.regs.pc;
             self.regs.inc_pc();
             let data = self.cycle_read(ctx, addr);
-            self.set_opcode(data, addr);
+            self.set_opcode(ctx, data, addr);
         } else if self.state.is_halt() {
             // In HALT mode the CPU does nothing while waiting for an interrupt
             self.rqst_itrs = ctx.cycle_state_itrs(self.state);
@@ -199,7 +215,7 @@ impl Cpu {
         if !halt_bug {
             self.regs.inc_pc();
         }
-        self.set_opcode(next_opcode, opcode_addr);
+        self.set_opcode(ctx, next_opcode, opcode_addr);
         if self.ime {
             self.rqst_itrs = rqst_itrs;
         }

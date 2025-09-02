@@ -33,6 +33,7 @@ pub struct GameState {
     pub new_game_frame_requested: bool,
     pub game_rendering_type: GameRenderingType,
     pub paused: bool,
+    pub breakpoint_addr: Option<u16>,
 }
 
 impl AppState {
@@ -78,31 +79,54 @@ impl AppState {
                 Err(err) => log::warn!("Couldn't start emulation from file: {err}"),
             }
         }
+        if let Some(emu) = self.emulation_state.as_mut() {
+            emu.set_breakpoint_addr(self.game_state.breakpoint_addr);
+        }
         if !self.game_state.paused {
-            let mut frame_duration = game_boy::SystemTime::from_seconds(delta_time.as_secs_f64());
-            loop {
-                let Some(emu) = self.emulation_state.as_mut() else {
-                    break;
-                };
-                let (events, elapsed_time) = emu.advance(frame_duration);
-                self.receive_emulation_events(events);
-                if elapsed_time > frame_duration {
-                    break;
-                } else {
-                    frame_duration -= elapsed_time
+            self.advance_emulation_timed(delta_time);
+        }
+    }
+    fn advance_emulation_timed(&mut self, time: Duration) {
+        let mut frame_duration = game_boy::SystemTime::from_seconds(time.as_secs_f64());
+        loop {
+            let Some(emu) = self.emulation_state.as_mut() else {
+                break;
+            };
+            let (events, elapsed_time) = emu.advance(frame_duration);
+            match self.receive_emulation_events(events) {
+                EmulationEventReaction::Continue => (),
+                EmulationEventReaction::Pause => {
+                    self.game_state.paused = true;
+                    return;
                 }
+            };
+            if elapsed_time > frame_duration {
+                break;
+            } else {
+                frame_duration -= elapsed_time
             }
         }
     }
-    fn receive_emulation_events(&mut self, events: game_boy::Events) {
+    fn receive_emulation_events(&mut self, events: game_boy::Events) -> EmulationEventReaction {
+        let mut res = EmulationEventReaction::Continue;
         if events.has_vblank() {
             log::debug!("VBlank detected, signaling game render");
             self.game_state.new_game_frame_requested = true;
         }
+        if events.has_breakpoint() {
+            log::debug!("Reached breakpoint, pausing emulation");
+            res = EmulationEventReaction::Pause;
+        }
+        res
     }
     pub fn advance_post_render(&mut self) {}
     pub fn config_gui_ctx(&self, ctx: &egui::Context) {
         ctx.set_zoom_factor(self.app_config.gui_scale.zoom_factor());
         ctx.set_theme(self.app_config.theme);
     }
+}
+
+enum EmulationEventReaction {
+    Continue,
+    Pause,
 }

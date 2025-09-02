@@ -52,6 +52,10 @@ impl CpuContext for StubContext {
     fn reset_div(&mut self) {
         unimplemented!()
     }
+
+    fn signal_event(&mut self, _event: crate::game_boy::events::Event) {
+        unimplemented!()
+    }
 }
 #[test]
 fn instruction_duration() {

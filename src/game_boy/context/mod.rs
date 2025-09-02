@@ -12,7 +12,7 @@ use super::{
     BootRom,
     cartridge::Cartridge,
     cpu::{CPUState, CpuContext},
-    events::Events,
+    events::{Event, Events},
     input::Input,
     time::SystemTime,
 };
@@ -354,6 +354,9 @@ impl CpuContext for Context {
             0xFF4A => self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.wy)),
             0xFF4B => self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.wx)),
             0xFF4D if !self.dmg_compatible() => self.generic_cycle(|slf| slf.key1.read()),
+            0xFF4F if !self.dmg_compatible() => {
+                self.ppu_cycle(|ppu| ppu.cycle_ppu_read(|ppu| ppu.read_vbk()))
+            }
             0xFF55 if !self.dmg_compatible() => self.generic_cycle(|slf| slf.hdma.read_hdma5()),
             0xFF68 if !self.dmg_compatible() => {
                 self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.bgpi))
@@ -417,10 +420,26 @@ impl CpuContext for Context {
                 slf.oam_dma
                     .cycle_write_dma(&mut slf.ppu, &slf.cartridge, &slf.wram, data)
             }),
+            0xFF47 if self.dmg_compatible() || self.boot_rom.is_enabled() => {
+                self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.write_bgp(data)))
+            }
+            0xFF48 if self.dmg_compatible() => {
+                self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.obp0 = data))
+            }
+            0xFF49 if self.dmg_compatible() => {
+                self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.obp1 = data))
+            }
+            0xFF50 if self.boot_rom.is_enabled() => {
+                self.boot_rom.disable();
+                ().into_data()
+            }
             0xFF4C if self.boot_rom.is_enabled() => {
                 self.generic_cycle(|slf| slf.dmg_compatibility = (data & 0b100) != 0)
             }
             0xFF4D if !self.dmg_compatible() => self.generic_cycle(|slf| slf.key1.write(data)),
+            0xFF4F if !self.dmg_compatible() => {
+                self.ppu_cycle(|ppu| ppu.cycle_ppu_write(|ppu| ppu.write_vbk(data)))
+            }
             0xFF51 if !self.dmg_compatible() => {
                 self.generic_cycle(|slf| slf.hdma.write_hdma_src_high(data))
             }
@@ -451,6 +470,7 @@ impl CpuContext for Context {
             0xFF6C if self.boot_rom.is_enabled() => {
                 self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.opri = data & 1 != 0))
             }
+            0xFF70 if !self.dmg_compatible() => self.generic_cycle(|slf| slf.wram.write_svbk(data)),
             0xFF80..0xFFFF => self.generic_cycle(|slf| slf.hram.write(addr, data)),
             0xFFFF => self.generic_cycle(|slf| slf.interrupt_enable = (data & 0x1F).into()),
             _ => {
@@ -493,6 +513,10 @@ impl CpuContext for Context {
     fn reset_div(&mut self) {
         self.timer.reset_div();
     }
+
+    fn signal_event(&mut self, event: Event) {
+        self.events.signal_event(event);
+    }
 }
 
 pub struct PpuContextImpl<'a> {
@@ -503,12 +527,13 @@ pub struct PpuContextImpl<'a> {
 }
 
 impl<'a> PpuContext for PpuContextImpl<'a> {
-    fn signal_lcd_interrupt(&mut self) {
-        self.itrs.set_lcd(true);
+    fn signal_vblank_interrupt(&mut self) {
+        self.events.signal_vblank();
+        self.itrs.set_vblank(true);
     }
 
-    fn signal_frame_ready(&mut self) {
-        todo!()
+    fn signal_lcd_interrupt(&mut self) {
+        self.itrs.set_lcd(true);
     }
 
     fn is_double_speed(&self) -> bool {
@@ -557,5 +582,8 @@ impl Context {
             _ => return None,
         };
         Some(data)
+    }
+    pub fn get_ppu(&self) -> &Ppu {
+        &self.ppu
     }
 }
