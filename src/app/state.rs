@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fmt::Debug, rc::Rc, time::Duration};
+use std::{cell::RefCell, rc::Rc, time::Duration};
 
 use winit::{
     event::KeyEvent,
@@ -64,6 +64,9 @@ impl AppState {
         }
     }
     pub fn advance_pre_render(&mut self, delta_time: Duration) {
+        puffin::set_scopes_on(self.options_ui_state.is_profiling());
+        puffin::profile_function!();
+        puffin::GlobalProfiler::lock().new_frame();
         self.task_manager.poll();
 
         if let Some(rom_file) = self
@@ -87,6 +90,7 @@ impl AppState {
         }
     }
     fn advance_emulation_timed(&mut self, time: Duration) {
+        puffin::profile_function!();
         let mut frame_duration = game_boy::SystemTime::from_seconds(time.as_secs_f64());
         loop {
             let Some(emu) = self.emulation_state.as_mut() else {

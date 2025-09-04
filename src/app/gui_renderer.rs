@@ -56,6 +56,7 @@ impl EguiRenderer {
         surface_config: &wgpu::SurfaceConfiguration,
         app_state: &mut AppState,
     ) {
+        puffin::profile_function!();
         let raw_input = self.state.take_egui_input(window);
 
         let full_output = self.context().run(raw_input, |ctx| {

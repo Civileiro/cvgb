@@ -18,6 +18,8 @@ futures = "0.3.31"
 log = "0.4.27"
 modular-bitfield = "0.12.0"
 pollster = "0.4.0"
+puffin = { git = "https://github.com/EmbarkStudios/puffin.git", rev = "refs/pull/244/head" }
+puffin_egui = { git = "https://github.com/EmbarkStudios/puffin.git", rev = "refs/pull/244/head" }
 rfd = "0.15.4"
 thiserror = "2.0.12"
 wgpu = "25.0.2"

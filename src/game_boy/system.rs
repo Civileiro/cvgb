@@ -41,6 +41,7 @@ impl System {
         self.context.system_time()
     }
     pub fn advance(&mut self, delta: SystemTime) -> (Events, SystemTime) {
+        puffin::profile_function!();
         let target_time = self.time() + delta;
         let start_time = self.time();
         let mut events: Events = Default::default();

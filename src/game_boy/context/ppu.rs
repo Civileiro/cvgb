@@ -6,9 +6,9 @@ use arrayvec::ArrayVec;
 use enum_assoc::Assoc;
 use modular_bitfield::prelude::*;
 
-use crate::game_boy::{WINDOW_HEIGHT, WINDOW_WIDTH, events::Events};
+use crate::game_boy::{WINDOW_HEIGHT, WINDOW_WIDTH};
 
-use super::{IntoData, interrupts::InterruptFlags};
+use super::IntoData;
 
 pub const VRAM_START_ADDR: u16 = 0x8000;
 pub const VRAM_END_ADDR: u16 = 0xA000;
@@ -750,6 +750,7 @@ struct PixelInfo {
 
 impl VideoBuffer {
     pub fn make_rgba_buffer(&self) -> Box<[u8]> {
+        puffin::profile_function!();
         let mut buffer = Vec::with_capacity(WINDOW_BUFFER_SIZE * 4);
         for line in &self.lines {
             for px in &line.pixels {

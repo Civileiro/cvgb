@@ -26,6 +26,7 @@ impl TaskManager {
             .expect("Executor should not be shutdown");
     }
     pub fn poll(&mut self) {
+        puffin::profile_function!();
         self.pool.run_until_stalled();
     }
 }

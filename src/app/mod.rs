@@ -147,9 +147,12 @@ impl ApplicationHandler for CvgbApp {
                 {
                     return;
                 }
-                self.state.advance_pre_render(self.timing.delta_time());
-                render_state.render(&mut self.state);
-                self.state.advance_post_render();
+                {
+                    puffin::profile_scope!("render");
+                    self.state.advance_pre_render(self.timing.delta_time());
+                    render_state.render(&mut self.state);
+                    self.state.advance_post_render();
+                }
                 event_loop.set_control_flow(winit::event_loop::ControlFlow::WaitUntil(
                     self.timing.next_frame_start_time(),
                 ));

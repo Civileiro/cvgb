@@ -151,6 +151,7 @@ impl RenderState {
     }
 
     pub fn render(&mut self, state: &mut AppState) {
+        puffin::profile_function!();
         for window_data in self.window_data.values_mut() {
             let mut encoder =
                 self.render_state
@@ -171,6 +172,7 @@ impl RenderState {
 
             // Game render pass
             if let Some(game_renderer) = window_data.renderer.game_renderer.as_mut() {
+                puffin::profile_scope!("render game");
                 game_renderer.update(
                     &self.render_state,
                     state,
@@ -203,6 +205,7 @@ impl RenderState {
             }
             // Gui render pass
             if let Some(gui_renderer) = window_data.renderer.gui_renderer.as_mut() {
+                puffin::profile_scope!("render ui");
                 state.config_gui_ctx(&gui_renderer.context());
                 gui_renderer.build_render_ui(
                     &self.render_state,
@@ -213,10 +216,13 @@ impl RenderState {
                     state,
                 );
             }
-            // Submit command in the queue to execute
-            self.render_state.queue.submit([encoder.finish()]);
-            window_data.window.pre_present_notify();
-            surface_texture.present();
+            {
+                puffin::profile_scope!("submit commands");
+                // Submit command in the queue to execute
+                self.render_state.queue.submit([encoder.finish()]);
+                window_data.window.pre_present_notify();
+                surface_texture.present();
+            }
         }
     }
 }

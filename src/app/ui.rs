@@ -106,16 +106,22 @@ pub mod options_ui {
         Options,
         #[assoc(name = "Debug")]
         Debug,
+        #[assoc(name = "Profiling")]
+        Profiling,
     }
 
     impl Menu {
-        const fn all() -> [Self; 2] {
-            [Self::Options, Self::Debug]
+        const fn all() -> [Self; 3] {
+            [Self::Options, Self::Debug, Self::Profiling]
         }
     }
 
     impl OptionsUiState {
+        pub fn is_profiling(&self) -> bool {
+            matches!(self.menu, Menu::Profiling)
+        }
         pub fn build(ctx: &egui::Context, state: &mut AppState) {
+            puffin::profile_function!();
             let slf = &mut state.options_ui_state;
             egui::TopBottomPanel::top("options_top_bar")
                 // .frame(egui::Frame::new().inner_margin(4))
@@ -184,6 +190,11 @@ pub mod options_ui {
                                 show_ppu(ui, emu);
                             });
                         });
+                }
+                Menu::Profiling => {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        puffin_egui::profiler_ui(ui);
+                    });
                 }
             }
         }
