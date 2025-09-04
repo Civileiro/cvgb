@@ -124,9 +124,15 @@ impl CartridgeMemory {
         self.rom[(addr & self.rom_mask()) as usize]
     }
     pub fn read_ram(&self, addr: u16) -> u8 {
+        if self.ram.is_empty() {
+            return 0xFF;
+        }
         self.ram[addr as usize % self.ram.len()]
     }
     pub fn write_ram(&mut self, addr: u16, data: u8) {
+        if self.ram.is_empty() {
+            return;
+        }
         self.ram[addr as usize % self.ram.len()] = data
     }
 }

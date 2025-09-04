@@ -18,7 +18,9 @@ pub const OAM_START_ADDR: u16 = 0xFE00;
 pub const OAM_END_ADDR: u16 = 0xFEA0;
 pub const OAM_SIZE: u16 = OAM_END_ADDR - OAM_START_ADDR;
 
-pub const PALLETE_MEM_SIZE: usize = 64;
+pub const PALLETE_MEM_SIZE: usize =
+    Palette::NUM_PALETTES * Palette::COLORS_PER_PALETTE * Palette::BYTES_PER_COLOR;
+pub const PALETTE_MEM_BITS: u8 = PALLETE_MEM_SIZE as u8 - 1;
 
 pub const WINDOW_BUFFER_SIZE: usize = WINDOW_WIDTH as usize * WINDOW_HEIGHT as usize;
 
@@ -38,6 +40,8 @@ pub struct Ppu {
     bcg_palette_mem: [u8; PALLETE_MEM_SIZE],
     /// Object Palette Memory
     obj_palette_mem: [u8; PALLETE_MEM_SIZE],
+    /// Base palette used for DMG compatibility
+    dmg_palette: Option<Palette>,
     /// LCD Control
     lcdc: Lcdc,
     /// LCD Status
@@ -102,7 +106,7 @@ pub struct ObjectAttributes {
     dmg_palette: B1,
     x_flip: bool,
     y_flip: bool,
-    not_priority: bool,
+    priority: bool,
 }
 
 #[bitfield(bits = 8)]
@@ -166,6 +170,7 @@ impl Default for Ppu {
             oam_lock: false,
             bcg_palette_mem: [0; PALLETE_MEM_SIZE],
             obj_palette_mem: [0; PALLETE_MEM_SIZE],
+            dmg_palette: None,
             lcdc: Default::default(),
             stat,
             ly: 0,
@@ -334,12 +339,12 @@ impl Ppu {
         if self.stat.ppu_mode().is_drawing() {
             ().into_data()
         } else {
-            self.bcg_palette_mem[(self.bgpi & 0x1F) as usize]
+            self.bcg_palette_mem[(self.bgpi & PALETTE_MEM_BITS) as usize]
         }
     }
     pub fn write_bgpd(&mut self, data: u8) {
         if !self.stat.ppu_mode().is_drawing() {
-            self.bcg_palette_mem[(self.bgpi & 0x1F) as usize] = data
+            self.bcg_palette_mem[(self.bgpi & PALETTE_MEM_BITS) as usize] = data
         }
         // Autoincrement
         if self.bgpi & 0x80 != 0 {
@@ -350,12 +355,12 @@ impl Ppu {
         if self.stat.ppu_mode().is_drawing() {
             ().into_data()
         } else {
-            self.obj_palette_mem[(self.ocpi & 0x1F) as usize]
+            self.obj_palette_mem[(self.ocpi & PALETTE_MEM_BITS) as usize]
         }
     }
     pub fn write_ocpd(&mut self, data: u8) {
         if !self.stat.ppu_mode().is_drawing() {
-            self.obj_palette_mem[(self.ocpi & 0x1F) as usize] = data
+            self.obj_palette_mem[(self.ocpi & PALETTE_MEM_BITS) as usize] = data
         }
         // Autoincrement
         if self.ocpi & 0x80 != 0 {
@@ -374,13 +379,13 @@ impl Ppu {
         for i in 0..4 {
             let id = data & 0b11;
             data >>= 2;
-            bg_palette[0].colors[i] = match id {
-                0 => PaletteColor::white(),
-                1 => PaletteColor::light_grey(),
-                2 => PaletteColor::dark_grey(),
-                3 => PaletteColor::black(),
-                _ => unreachable!(),
-            };
+            let dmg_palette = self.dmg_palette.unwrap_or(Palette::from_colors([
+                PaletteColor::white(),
+                PaletteColor::light_grey(),
+                PaletteColor::dark_grey(),
+                PaletteColor::black(),
+            ]));
+            bg_palette[0].colors[i] = dmg_palette.colors[id as usize];
         }
         self.bcg_palette_mem = Palette::to_bytes(bg_palette);
     }
@@ -389,6 +394,10 @@ impl Ppu {
     }
     pub fn write_vbk(&mut self, data: u8) {
         self.vram_bank = data & 1 != 0
+    }
+    pub fn set_dmg_palette(&mut self) {
+        let pals = self.get_bcg_palettes();
+        self.dmg_palette = Some(pals[0]);
     }
     fn switch_mode(&mut self, mode: Mode) {
         self.stat.set_ppu_mode(mode);
@@ -413,12 +422,55 @@ impl Ppu {
         for px in &mut self.video_buffer.lines[self.ly as usize].pixels {
             px.set_lcdc_bg_enable_or_priority(self.lcdc.bg_enable_or_priority());
         }
-        // if self.lcdc.obj_enable() {
-        //     let objects = self.get_object_in_ly();
-        //
-        //     let ly = self.ly as i32;
-        //     todo!()
-        // }
+        if self.lcdc.obj_enable() {
+            let objects = self.get_objects_in_ly();
+
+            let ly = self.ly as i32;
+            let obj_height = if self.lcdc.obj_size() { 16 } else { 8 };
+            for obj in objects {
+                let obj_screen_y = obj.y as i32 - 16;
+                let obj_screen_x = obj.x as i32 - 8;
+                let obj_sprite_y = if obj.attrs.y_flip() {
+                    obj_screen_y + obj_height - 1 - ly
+                } else {
+                    ly - obj_screen_y
+                };
+                debug_assert!(
+                    obj_sprite_y >= 0 && obj_sprite_y < obj_height,
+                    "get_objects_in_ly should only return valid objects for the current line",
+                );
+                let is_second_tile = obj_sprite_y > 7;
+                let tile_index = obj.tile_index.wrapping_add(is_second_tile as u8);
+                let tile = self.get_object_tile_bytes(tile_index, obj.attrs);
+                let tile_y = obj_sprite_y as usize % 8;
+
+                let mut lo_byte = tile[2 * tile_y];
+                let mut hi_byte = tile[2 * tile_y + 1];
+                // bits are normally flipped from the order we visit them
+                if !obj.attrs.x_flip() {
+                    lo_byte = lo_byte.reverse_bits();
+                    hi_byte = hi_byte.reverse_bits();
+                }
+                for x in obj_screen_x..(obj_screen_x + 8) {
+                    if !(0..WINDOW_WIDTH as i32).contains(&x) {
+                        continue;
+                    }
+                    let lx = x as u8;
+                    let color_index = ((hi_byte & 1) << 1) | (lo_byte & 1);
+
+                    self.video_buffer.set_object_pixel(
+                        lx,
+                        self.ly,
+                        obj.attrs.cgb_palette(),
+                        color_index,
+                        obj.attrs.priority(),
+                    );
+
+                    lo_byte >>= 1;
+                    hi_byte >>= 1;
+                }
+            }
+        }
         if !ctx.is_dmg_compatible() || self.lcdc.bg_enable_or_priority() {
             let y = self.ly.wrapping_add(self.scy);
             let map_y = (y / 8) as usize;
@@ -436,7 +488,7 @@ impl Ppu {
                 let timemap_index = map_start + map_y * 32 + map_x;
                 let tile_attrs = BackgroundAttributes::from(self.vram[timemap_index + 0x2000]);
                 let tile_index = self.vram[timemap_index];
-                let tile = self.get_background_tile_bytes(tile_index, Some(tile_attrs));
+                let tile = self.get_background_tile_bytes(tile_index, tile_attrs);
                 let tile_y = if tile_attrs.y_flip() {
                     7 - (y % 8) as usize
                 } else {
@@ -478,7 +530,7 @@ impl Ppu {
     }
     /// returns the (up to) 10 objects that can be drawn in the current line
     /// sorted by priority in decreasing order
-    fn get_object_in_ly(&self) -> ArrayVec<Object, 10> {
+    fn get_objects_in_ly(&self) -> ArrayVec<Object, 10> {
         let obj_height = if self.lcdc.obj_size() { 16 } else { 8 };
         let mut objects: ArrayVec<(usize, Object), 10> = self
             .oam
@@ -508,18 +560,21 @@ impl Ppu {
         }
         objects.into_iter().map(|(_, obj)| obj).collect()
     }
-    fn get_background_tile_bytes(
-        &self,
-        tile_index: u8,
-        attrs: Option<BackgroundAttributes>,
-    ) -> &[u8] {
+    fn get_background_tile_bytes(&self, tile_index: u8, attrs: BackgroundAttributes) -> &[u8] {
         let tile_index = if self.lcdc.bg_tile_addr_mode() {
-            tile_index as usize
+            tile_index
         } else {
-            (tile_index as i8 as i16 + 256) as usize
+            (tile_index as i8 as i16 + 256) as u8
         };
-        let bank = attrs.map(|att| att.bank()).unwrap_or(0);
-        let start = tile_index * 16 + bank as usize * 0x2000;
+        self.get_tile_bytes(tile_index, attrs.bank())
+    }
+    fn get_object_tile_bytes(&self, tile_index: u8, attrs: ObjectAttributes) -> &[u8] {
+        self.get_tile_bytes(tile_index, attrs.bank())
+    }
+    fn get_tile_bytes(&self, tile_index: u8, bank: u8) -> &[u8] {
+        let tile_index = tile_index as usize;
+        let bank = bank as usize;
+        let start = tile_index * 16 + bank * 0x2000;
         let end = start + 16;
         &self.vram[start..end]
     }
@@ -545,7 +600,7 @@ impl Object {
 }
 
 #[bitfield(bits = 16)]
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 struct PaletteColor {
     red: B5,
     green: B5,
@@ -579,6 +634,18 @@ pub struct RgbColor {
     blue: u8,
 }
 
+impl RgbColor {
+    pub fn red(&self) -> u8 {
+        self.red
+    }
+    pub fn green(&self) -> u8 {
+        self.green
+    }
+    pub fn blue(&self) -> u8 {
+        self.blue
+    }
+}
+
 impl From<PaletteColor> for RgbColor {
     fn from(value: PaletteColor) -> Self {
         Self {
@@ -600,16 +667,26 @@ impl From<RgbColor> for PaletteColor {
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Palette {
-    colors: [PaletteColor; 4],
+    colors: [PaletteColor; Self::COLORS_PER_PALETTE],
 }
 
 impl Palette {
-    pub fn from_bytes(bytes: [u8; 64]) -> [Self; 8] {
+    pub const NUM_PALETTES: usize = 8;
+    pub const COLORS_PER_PALETTE: usize = 4;
+    pub const BYTES_PER_COLOR: usize = 2;
+
+    pub fn from_bytes(bytes: [u8; PALLETE_MEM_SIZE]) -> [Self; Self::NUM_PALETTES] {
         // SAFETY: any memory state is a valid palette
         unsafe { std::mem::transmute(bytes) }
     }
-    pub fn to_bytes(slf: [Self; 8]) -> [u8; 64] {
+    pub fn to_bytes(slf: [Self; Self::NUM_PALETTES]) -> [u8; PALLETE_MEM_SIZE] {
         unsafe { std::mem::transmute(slf) }
+    }
+    fn from_colors(colors: [PaletteColor; Self::COLORS_PER_PALETTE]) -> Self {
+        Self { colors }
+    }
+    pub fn get_rgb_color(&self, index: usize) -> RgbColor {
+        self.colors[index].into()
     }
 }
 
@@ -679,10 +756,7 @@ impl VideoBuffer {
                 let color: PaletteColor;
                 match (px.has_background(), px.has_object()) {
                     (false, false) => {
-                        color = PaletteColor::new()
-                            .with_red(0x1F)
-                            .with_green(0x1F)
-                            .with_blue(0x1F);
+                        color = PaletteColor::white();
                     }
                     (false, true) => {
                         color = line.get_object_color(px.object_fragment());

@@ -11,6 +11,7 @@ mod time;
 pub use boot_rom::BootRom;
 pub use cartridge::{Cartridge, Rom};
 pub use config::Config;
+pub use context::Palette;
 pub use cpu::{Cpu, opcode::Opcode};
 pub use events::Events;
 pub use input::Input;

@@ -26,7 +26,8 @@ mod p1;
 mod ppu;
 mod timer;
 mod wram;
-pub use ppu::VideoBuffer;
+
+pub use ppu::{Palette, VideoBuffer};
 
 #[derive(Debug)]
 pub struct Context {
@@ -151,6 +152,12 @@ impl Context {
     }
     fn dmg_compatible(&self) -> bool {
         self.dmg_compatibility
+    }
+    fn access_cgb_reg(&self) -> bool {
+        !self.dmg_compatible() || self.boot_rom.is_enabled()
+    }
+    fn access_dmg_reg(&self) -> bool {
+        self.dmg_compatible() || self.boot_rom.is_enabled()
     }
 }
 
@@ -342,38 +349,38 @@ impl CpuContext for Context {
                 slf.oam_dma
                     .cycle_read_dma(&mut slf.ppu, &slf.cartridge, &slf.wram)
             }),
-            0xFF47 if self.dmg_compatible() => {
+            0xFF47 if self.access_dmg_reg() => {
                 self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.bgp))
             }
-            0xFF48 if self.dmg_compatible() => {
+            0xFF48 if self.access_dmg_reg() => {
                 self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.obp0))
             }
-            0xFF49 if self.dmg_compatible() => {
+            0xFF49 if self.access_dmg_reg() => {
                 self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.obp1))
             }
             0xFF4A => self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.wy)),
             0xFF4B => self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.wx)),
-            0xFF4D if !self.dmg_compatible() => self.generic_cycle(|slf| slf.key1.read()),
-            0xFF4F if !self.dmg_compatible() => {
+            0xFF4D if self.access_cgb_reg() => self.generic_cycle(|slf| slf.key1.read()),
+            0xFF4F if self.access_cgb_reg() => {
                 self.ppu_cycle(|ppu| ppu.cycle_ppu_read(|ppu| ppu.read_vbk()))
             }
-            0xFF55 if !self.dmg_compatible() => self.generic_cycle(|slf| slf.hdma.read_hdma5()),
-            0xFF68 if !self.dmg_compatible() => {
+            0xFF55 if self.access_cgb_reg() => self.generic_cycle(|slf| slf.hdma.read_hdma5()),
+            0xFF68 if self.access_cgb_reg() => {
                 self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.bgpi))
             }
-            0xFF69 if !self.dmg_compatible() => {
+            0xFF69 if self.access_cgb_reg() => {
                 self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.read_bgpd()))
             }
-            0xFF6A if !self.dmg_compatible() => {
+            0xFF6A if self.access_cgb_reg() => {
                 self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.ocpi))
             }
-            0xFF6B if !self.dmg_compatible() => {
+            0xFF6B if self.access_cgb_reg() => {
                 self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.read_ocpd()))
             }
             0xFF6C if self.boot_rom.is_enabled() => {
                 self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.opri as u8 | 0xFE))
             }
-            0xFF70 if !self.dmg_compatible() => self.generic_cycle(|slf| slf.wram.read_svbk()),
+            0xFF70 if self.access_cgb_reg() => self.generic_cycle(|slf| slf.wram.read_svbk()),
             0xFF80..0xFFFF => self.generic_cycle(|slf| slf.hram.read(addr)),
             0xFFFF => self.generic_cycle(|slf| slf.interrupt_enable),
             _ => {
@@ -420,57 +427,58 @@ impl CpuContext for Context {
                 slf.oam_dma
                     .cycle_write_dma(&mut slf.ppu, &slf.cartridge, &slf.wram, data)
             }),
-            0xFF47 if self.dmg_compatible() || self.boot_rom.is_enabled() => {
+            0xFF47 if self.access_dmg_reg() || self.boot_rom.is_enabled() => {
                 self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.write_bgp(data)))
             }
-            0xFF48 if self.dmg_compatible() => {
+            0xFF48 if self.access_dmg_reg() => {
                 self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.obp0 = data))
             }
-            0xFF49 if self.dmg_compatible() => {
+            0xFF49 if self.access_dmg_reg() => {
                 self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.obp1 = data))
-            }
-            0xFF50 if self.boot_rom.is_enabled() => {
-                self.boot_rom.disable();
-                ().into_data()
             }
             0xFF4C if self.boot_rom.is_enabled() => {
                 self.generic_cycle(|slf| slf.dmg_compatibility = (data & 0b100) != 0)
             }
-            0xFF4D if !self.dmg_compatible() => self.generic_cycle(|slf| slf.key1.write(data)),
-            0xFF4F if !self.dmg_compatible() => {
+            0xFF4D if self.access_cgb_reg() => self.generic_cycle(|slf| slf.key1.write(data)),
+            0xFF4F if self.access_cgb_reg() => {
                 self.ppu_cycle(|ppu| ppu.cycle_ppu_write(|ppu| ppu.write_vbk(data)))
             }
-            0xFF51 if !self.dmg_compatible() => {
+            0xFF50 if self.boot_rom.is_enabled() => {
+                self.boot_rom.disable();
+                self.ppu.set_dmg_palette();
+                ().into_data()
+            }
+            0xFF51 if self.access_cgb_reg() => {
                 self.generic_cycle(|slf| slf.hdma.write_hdma_src_high(data))
             }
-            0xFF52 if !self.dmg_compatible() => {
+            0xFF52 if self.access_cgb_reg() => {
                 self.generic_cycle(|slf| slf.hdma.write_hdma_src_low(data))
             }
-            0xFF53 if !self.dmg_compatible() => {
+            0xFF53 if self.access_cgb_reg() => {
                 self.generic_cycle(|slf| slf.hdma.write_hdma_dst_high(data))
             }
-            0xFF54 if !self.dmg_compatible() => {
+            0xFF54 if self.access_cgb_reg() => {
                 self.generic_cycle(|slf| slf.hdma.write_hdma_dst_low(data))
             }
-            0xFF55 if !self.dmg_compatible() => {
+            0xFF55 if self.access_cgb_reg() => {
                 self.generic_cycle(|slf| slf.hdma.write_hdma5(&slf.ppu, data))
             }
-            0xFF68 if !self.dmg_compatible() => {
+            0xFF68 if self.access_cgb_reg() => {
                 self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.bgpi = data))
             }
-            0xFF69 if !self.dmg_compatible() => {
+            0xFF69 if self.access_cgb_reg() => {
                 self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.write_bgpd(data)))
             }
-            0xFF6A if !self.dmg_compatible() => {
+            0xFF6A if self.access_cgb_reg() => {
                 self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.ocpi = data))
             }
-            0xFF6B if !self.dmg_compatible() => {
+            0xFF6B if self.access_cgb_reg() => {
                 self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.write_ocpd(data)))
             }
             0xFF6C if self.boot_rom.is_enabled() => {
                 self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.opri = data & 1 != 0))
             }
-            0xFF70 if !self.dmg_compatible() => self.generic_cycle(|slf| slf.wram.write_svbk(data)),
+            0xFF70 if self.access_cgb_reg() => self.generic_cycle(|slf| slf.wram.write_svbk(data)),
             0xFF80..0xFFFF => self.generic_cycle(|slf| slf.hram.write(addr, data)),
             0xFFFF => self.generic_cycle(|slf| slf.interrupt_enable = (data & 0x1F).into()),
             _ => {

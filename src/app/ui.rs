@@ -87,7 +87,7 @@ pub mod options_ui {
     use enum_assoc::Assoc;
 
     use crate::{
-        app::state::{AppState, GameState},
+        app::state::AppState,
         game_boy::{self, Opcode},
     };
 
@@ -438,5 +438,50 @@ pub mod options_ui {
                     }
                 }
             });
+
+        ui.label("Palettes");
+        for (palette_label, palettes) in [
+            ("Background", ppu.get_bcg_palettes()),
+            ("Object", ppu.get_obj_palettes()),
+        ] {
+            ui.label(palette_label);
+            const COLORS_PER_ROW: usize = 8;
+            const PALETTES_PER_ROW: usize = COLORS_PER_ROW / game_boy::Palette::COLORS_PER_PALETTE;
+            const NUM_ROWS: usize = game_boy::Palette::NUM_PALETTES / PALETTES_PER_ROW;
+            const NUM_COLS: usize = COLORS_PER_ROW;
+            const SQUARE_SIZE: f32 = 20.0;
+            let mut palette_index = 0;
+            let mut color_index = 0;
+
+            ui.scope(|ui| {
+                ui.style_mut().spacing.item_spacing = (0.0, 0.0).into();
+                for _ in 0..NUM_ROWS {
+                    ui.horizontal(|ui| {
+                        for _ in 0..COLORS_PER_ROW {
+                            let (rect, response) = ui.allocate_exact_size(
+                                egui::Vec2::splat(SQUARE_SIZE),
+                                egui::Sense::hover(),
+                            );
+
+                            let color = palettes[palette_index].get_rgb_color(color_index);
+                            let rgb_color =
+                                egui::Color32::from_rgb(color.red(), color.green(), color.blue());
+
+                            ui.painter().rect_filled(rect, 0.0, rgb_color);
+
+                            response.on_hover_text_at_pointer(format!(
+                                "{palette_label} Palette {palette_index} Color {color_index}"
+                            ));
+
+                            color_index += 1;
+                            if color_index == game_boy::Palette::COLORS_PER_PALETTE {
+                                palette_index += 1;
+                                color_index = 0
+                            }
+                        }
+                    });
+                }
+            });
+        }
     }
 }
