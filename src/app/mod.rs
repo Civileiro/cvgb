@@ -1,3 +1,4 @@
+mod audio;
 mod config;
 mod game_renderer;
 mod gui_renderer;

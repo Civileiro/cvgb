@@ -1,7 +1,9 @@
+use std::{cell::RefCell, rc::Rc};
+
 use super::{
     Cartridge, Input, Rom,
     cartridge::CartridgeParseError,
-    context::{Context, VideoBuffer},
+    context::{AudioOutput, Context, VideoBuffer},
     cpu::Cpu,
     events::Events,
     time::SystemTime,
@@ -64,5 +66,8 @@ impl System {
     }
     pub fn get_video_buffer(&self) -> &VideoBuffer {
         self.context.get_video_buffer()
+    }
+    pub fn get_audio_output(&mut self) -> AudioOutput {
+        self.context.get_audio_output()
     }
 }

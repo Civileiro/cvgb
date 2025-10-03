@@ -29,21 +29,24 @@ impl UiLayout {
 
 fn show_main_menu(ctx: &egui::Context, state: &mut AppState) {
     egui::CentralPanel::default().show(ctx, |ui| {
-        ui.label("Cvgb main menu");
-        if ui.button("Open rom file").clicked() {
-            let state_rom_file = state.game_state.init_rom_file.clone();
-            let file_dialog_future = async move {
-                let Some(file_handle) = rfd::AsyncFileDialog::new()
-                    .set_title("Choose Rom")
-                    .pick_file()
-                    .await
-                else {
-                    return;
+        ui.vertical_centered_justified(|ui| {
+            ui.label("Cvgb main menu");
+            if ui.button("Open rom file").clicked() {
+                let state_rom_file = state.game_state.init_rom_file.clone();
+                let file_dialog_future = async move {
+                    let Some(file_handle) = rfd::AsyncFileDialog::new()
+                        .set_title("Choose Rom")
+                        .pick_file()
+                        .await
+                    else {
+                        return;
+                    };
+                    *state_rom_file.borrow_mut() =
+                        Some(file_handle.read().await.into_boxed_slice());
                 };
-                *state_rom_file.borrow_mut() = Some(file_handle.read().await.into_boxed_slice());
-            };
-            state.task_manager.add_task(file_dialog_future);
-        }
+                state.task_manager.add_task(file_dialog_future);
+            }
+        });
     });
 }
 
@@ -151,6 +154,9 @@ pub mod options_ui {
 
                                 ui.label("Start emulation paused");
                                 ui.checkbox(&mut state.app_config.start_paused, ());
+                                ui.end_row();
+                                ui.label("Sample Rate");
+                                state.app_config.audio_sample_rate.combo_box(ui);
                                 ui.end_row();
                             });
                     });

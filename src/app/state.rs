@@ -8,8 +8,8 @@ use winit::{
 use crate::game_boy;
 
 use super::{
-    game_renderer::GameRenderingType, tasks::TaskManager, ui::options_ui::OptionsUiState,
-    windows::WindowRegistry,
+    audio::AudioDriver, game_renderer::GameRenderingType, tasks::TaskManager,
+    ui::options_ui::OptionsUiState, windows::WindowRegistry,
 };
 
 #[derive(Debug, Default)]
@@ -20,6 +20,7 @@ pub struct AppState {
 
     pub window_registry: WindowRegistry,
     pub task_manager: TaskManager,
+    pub audio_driver: AudioDriver,
 
     pub options_ui_state: OptionsUiState,
 }
@@ -78,7 +79,10 @@ impl AppState {
         {
             self.game_state.paused = self.app_config.start_paused;
             match game_boy::System::new(rom_file) {
-                Ok(emu) => self.emulation_state = Some(emu),
+                Ok(mut emu) => {
+                    self.audio_driver.set_gb_output(emu.get_audio_output());
+                    self.emulation_state = Some(emu)
+                }
                 Err(err) => log::warn!("Couldn't start emulation from file: {err}"),
             }
         }
@@ -88,6 +92,9 @@ impl AppState {
         if !self.game_state.paused {
             self.advance_emulation_timed(delta_time);
         }
+
+        self.audio_driver
+            .set_sample_rate(self.app_config.audio_sample_rate.get());
     }
     fn advance_emulation_timed(&mut self, time: Duration) {
         puffin::profile_function!();
@@ -116,6 +123,7 @@ impl AppState {
         if events.has_vblank() {
             log::debug!("VBlank detected, signaling game render");
             self.game_state.new_game_frame_requested = true;
+            self.audio_driver.signal_vblank();
         }
         if events.has_breakpoint() {
             log::debug!("Reached breakpoint, pausing emulation");
@@ -123,7 +131,11 @@ impl AppState {
         }
         res
     }
-    pub fn advance_post_render(&mut self) {}
+    pub fn advance_post_render(&mut self) {
+        if self.game_state.paused {
+            self.audio_driver.signal_sleep();
+        }
+    }
     pub fn config_gui_ctx(&self, ctx: &egui::Context) {
         ctx.set_zoom_factor(self.app_config.gui_scale.zoom_factor());
         ctx.set_theme(self.app_config.theme);

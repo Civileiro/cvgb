@@ -45,78 +45,101 @@ impl Timer {
         self.tima = tima;
         self.overflowed = overflow;
     }
-    fn clock(&mut self, itrs: &mut InterruptFlags) {
+    fn clock(&mut self, ctx: &mut impl TimerContext) {
         if self.overflowed {
             self.overflowed = false;
             self.tima = self.tma;
-            itrs.set_timer(true);
+            ctx.signal_timer_interrupt();
         }
         self.sys_clock = self.sys_clock.wrapping_add(1);
     }
     fn selected_bit(&self) -> bool {
         self.sys_clock & self.frequency_mask() != 0
     }
-    fn watch_selected_bit<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+    fn div_apu_bit(&self, ctx: &mut impl TimerContext) -> bool {
+        let mask = if ctx.is_double_speed() {
+            1 << 11
+        } else {
+            1 << 10
+        };
+        self.sys_clock & mask != 0
+    }
+    fn watch_falling_edges<C: TimerContext, T>(
+        &mut self,
+        ctx: &mut C,
+        f: impl FnOnce(&mut Self, &mut C) -> T,
+    ) -> T {
         let prev_bit = self.selected_bit();
-        let res = f(self);
+        let prev_apu_bit = self.div_apu_bit(ctx);
+        let res = f(self, ctx);
         let new_bit = self.selected_bit();
+        let new_apu_bit = self.div_apu_bit(ctx);
         if self.tac.enable() && prev_bit && !new_bit {
             self.tick();
+        }
+        if prev_apu_bit && !new_apu_bit {
+            ctx.signal_div_apu_event();
         }
         res
     }
 
-    pub fn cycle(&mut self, itrs: &mut InterruptFlags) {
-        self.watch_selected_bit(|slf| slf.clock(itrs))
+    pub fn cycle(&mut self, ctx: &mut impl TimerContext) {
+        self.watch_falling_edges(ctx, |slf, ctx| slf.clock(ctx))
     }
-    pub fn cycle_read_div(&mut self, itrs: &mut InterruptFlags) -> u8 {
-        self.watch_selected_bit(|slf| {
-            slf.clock(itrs);
+    pub fn cycle_read_div(&mut self, ctx: &mut impl TimerContext) -> u8 {
+        self.watch_falling_edges(ctx, |slf, ctx| {
+            slf.clock(ctx);
             slf.div()
         })
     }
-    pub fn cycle_write_div(&mut self, itrs: &mut InterruptFlags, _data: u8) {
-        self.watch_selected_bit(|slf| {
-            slf.clock(itrs);
+    pub fn cycle_write_div(&mut self, ctx: &mut impl TimerContext, _data: u8) {
+        self.watch_falling_edges(ctx, |slf, ctx| {
+            slf.clock(ctx);
             slf.sys_clock = 0;
         })
     }
-    pub fn cycle_read_tima(&mut self, itrs: &mut InterruptFlags) -> u8 {
-        self.watch_selected_bit(|slf| {
-            slf.clock(itrs);
+    pub fn cycle_read_tima(&mut self, ctx: &mut impl TimerContext) -> u8 {
+        self.watch_falling_edges(ctx, |slf, ctx| {
+            slf.clock(ctx);
             slf.tima
         })
     }
-    pub fn cycle_write_tima(&mut self, itrs: &mut InterruptFlags, data: u8) {
-        self.watch_selected_bit(|slf| {
-            slf.clock(itrs);
+    pub fn cycle_write_tima(&mut self, ctx: &mut impl TimerContext, data: u8) {
+        self.watch_falling_edges(ctx, |slf, ctx| {
+            slf.clock(ctx);
             // Writing to TIMA during an overflow cycle causes it to be ignored
             slf.overflowed = false;
             slf.tima = data
         })
     }
-    pub fn cycle_read_tma(&mut self, itrs: &mut InterruptFlags) -> u8 {
-        self.watch_selected_bit(|slf| {
-            slf.clock(itrs);
+    pub fn cycle_read_tma(&mut self, ctx: &mut impl TimerContext) -> u8 {
+        self.watch_falling_edges(ctx, |slf, ctx| {
+            slf.clock(ctx);
             slf.tma
         })
     }
-    pub fn cycle_write_tma(&mut self, itrs: &mut InterruptFlags, data: u8) {
-        self.watch_selected_bit(|slf| {
+    pub fn cycle_write_tma(&mut self, ctx: &mut impl TimerContext, data: u8) {
+        self.watch_falling_edges(ctx, |slf, ctx| {
             slf.tma = data;
-            slf.clock(itrs);
+            slf.clock(ctx);
         })
     }
-    pub fn cycle_read_tac(&mut self, itrs: &mut InterruptFlags) -> u8 {
-        self.watch_selected_bit(|slf| {
-            slf.clock(itrs);
+    pub fn cycle_read_tac(&mut self, ctx: &mut impl TimerContext) -> u8 {
+        self.watch_falling_edges(ctx, |slf, ctx| {
+            slf.clock(ctx);
             slf.tac.into()
         })
     }
-    pub fn cycle_write_tac(&mut self, itrs: &mut InterruptFlags, data: u8) {
-        self.watch_selected_bit(|slf| {
-            slf.clock(itrs);
+    pub fn cycle_write_tac(&mut self, ctx: &mut impl TimerContext, data: u8) {
+        self.watch_falling_edges(ctx, |slf, ctx| {
+            slf.clock(ctx);
             slf.tac = data.into();
         })
     }
+}
+
+pub trait TimerContext {
+    fn signal_timer_interrupt(&mut self);
+    fn is_double_speed(&self) -> bool;
+    fn signal_div_apu_event(&mut self);
 }

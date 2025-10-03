@@ -11,22 +11,24 @@
       let
         pkgs = import nixpkgs { inherit system; };
 
-        rpathLibs = with pkgs;
-          [
-            xorg.libX11
-            # xorg.libXcursor
-            xorg.libXrandr
-            xorg.libXi
-            # xorg.libXinerama
-            # xorg.libXext
-            # xorg.libXxf86vm
-            libxkbcommon
-            libGL
-            wayland
-            wayland-protocols
-            mesa
-            vulkan-loader
-          ];
+        nativeLibs = with pkgs; [ pkg-config ];
+        rpathLibs = with pkgs; [
+          xorg.libX11
+          # xorg.libXcursor
+          xorg.libXrandr
+          xorg.libXi
+          # xorg.libXinerama
+          # xorg.libXext
+          # xorg.libXxf86vm
+          libxkbcommon
+          libGL
+          wayland
+          wayland-protocols
+          mesa
+          vulkan-loader
+          alsa-lib
+          jack2
+        ];
 
       in {
         packages.default = pkgs.rustPlatform.buildRustPackage rec {
@@ -36,7 +38,7 @@
 
           cargoLock = { lockFile = ./Cargo.lock; };
 
-          nativeBuildInputs = [ ];
+          nativeBuildInputs = nativeLibs;
           buildInputs = rpathLibs;
 
           postFixup = with pkgs; ''
@@ -48,8 +50,7 @@
 
         devShells.default = pkgs.mkShell {
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath rpathLibs;
-          buildInputs = [ ] ++ rpathLibs;
-
+          buildInputs = nativeLibs ++ rpathLibs;
         };
       });
 }

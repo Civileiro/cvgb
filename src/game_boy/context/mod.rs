@@ -1,3 +1,5 @@
+use apu::Apu;
+pub use apu::AudioOutput;
 use hdma::Hdma;
 use hram::HighRam;
 use interrupts::{Interrupt, InterruptFlags};
@@ -11,12 +13,14 @@ use wram::WorkRam;
 use super::{
     BootRom,
     cartridge::Cartridge,
+    context::timer::TimerContext,
     cpu::{CPUState, CpuContext},
     events::{Event, Events},
     input::Input,
     time::SystemTime,
 };
 
+mod apu;
 mod hdma;
 mod hram;
 pub mod interrupts;
@@ -42,6 +46,7 @@ pub struct Context {
     wram: WorkRam,
     p1: P1,
     timer: Timer,
+    apu: Apu,
     key1: Key1,
     hram: HighRam,
     interrupts: InterruptFlags,
@@ -111,6 +116,7 @@ impl Context {
             wram: Default::default(),
             p1: Default::default(),
             timer: Default::default(),
+            apu: Default::default(),
             key1: Default::default(),
             hram: Default::default(),
             interrupts: Default::default(),
@@ -141,11 +147,14 @@ impl Context {
     pub fn get_video_buffer(&self) -> &VideoBuffer {
         self.ppu.get_video_buffer()
     }
+    pub fn get_audio_output(&mut self) -> AudioOutput {
+        self.apu.get_audio_output()
+    }
     fn active_interrupts(&self) -> InterruptFlags {
         (Into::<u8>::into(self.interrupts) & Into::<u8>::into(self.interrupt_enable)).into()
     }
     fn is_double_speed_cycle(&self) -> bool {
-        self.key1.current_speed() && (self.time.cycles() % 4 != 0)
+        self.key1.current_speed() && !self.time.cycles().is_multiple_of(4)
     }
     fn set_dmg_compatibility(&mut self, compat: bool) {
         self.dmg_compatibility = compat
@@ -167,6 +176,7 @@ enum CycleStage {
     AccessOamDma,
     AccessCartridge,
     AccessTimer,
+    AccessApu,
     AccessWRam,
     AccessVRam,
     AccessOam,
@@ -238,7 +248,15 @@ impl Context {
         if stage == CycleStage::AccessTimer {
             res = f(self).into_data()
         } else {
-            self.timer.cycle(&mut self.interrupts);
+            self.cycle_timer();
+        }
+        if self.is_double_speed_cycle() {
+            self.apu.signal_double_speed_cycle();
+        }
+        if stage == CycleStage::AccessApu {
+            res = f(self).into_data()
+        } else {
+            self.apu.cycle();
         }
         if stage == CycleStage::AccessWRam {
             if matches!(
@@ -308,6 +326,9 @@ impl Context {
     fn timer_cycle<T: IntoData>(&mut self, f: impl Fn(&mut Self) -> T) -> u8 {
         self.cycle(CycleStage::AccessTimer, CPUState::Normal, f)
     }
+    fn apu_cycle<T: IntoData>(&mut self, f: impl Fn(&mut Self) -> T) -> u8 {
+        self.cycle(CycleStage::AccessApu, CPUState::Normal, f)
+    }
     fn oam_dma_cycle<T: IntoData>(&mut self, f: impl Fn(&mut Self) -> T) -> u8 {
         self.cycle(CycleStage::AccessOamDma, CPUState::Normal, f)
     }
@@ -334,11 +355,47 @@ impl CpuContext for Context {
                 self.generic_cycle(|_| ())
             }
             0xFF00 => self.generic_cycle(|slf| slf.p1.read()),
-            0xFF04 => self.timer_cycle(|slf| slf.timer.cycle_read_div(&mut slf.interrupts)),
-            0xFF05 => self.timer_cycle(|slf| slf.timer.cycle_read_tima(&mut slf.interrupts)),
-            0xFF06 => self.timer_cycle(|slf| slf.timer.cycle_read_tma(&mut slf.interrupts)),
-            0xFF07 => self.timer_cycle(|slf| slf.timer.cycle_read_tac(&mut slf.interrupts)),
+            0xFF04 => self.timer_cycle(|slf| {
+                let (timer, mut ctx) = slf.timer_ctx();
+                timer.cycle_read_div(&mut ctx)
+            }),
+            0xFF05 => self.timer_cycle(|slf| {
+                let (timer, mut ctx) = slf.timer_ctx();
+                timer.cycle_read_tima(&mut ctx)
+            }),
+            0xFF06 => self.timer_cycle(|slf| {
+                let (timer, mut ctx) = slf.timer_ctx();
+                timer.cycle_read_tma(&mut ctx)
+            }),
+            0xFF07 => self.timer_cycle(|slf| {
+                let (timer, mut ctx) = slf.timer_ctx();
+                timer.cycle_read_tac(&mut ctx)
+            }),
             0xFF0F => self.generic_cycle(|slf| slf.interrupts),
+            0xFF10 => self.apu_cycle(|slf| slf.apu.cycle_nr10_read()),
+            0xFF11 => self.apu_cycle(|slf| slf.apu.cycle_nr11_read()),
+            0xFF12 => self.apu_cycle(|slf| slf.apu.cycle_nr12_read()),
+            // 0xFF13 => self.apu_cycle(|slf| slf.apu.cycle_nr13_read()),
+            0xFF14 => self.apu_cycle(|slf| slf.apu.cycle_nr14_read()),
+            0xFF16 => self.apu_cycle(|slf| slf.apu.cycle_nr21_read()),
+            0xFF17 => self.apu_cycle(|slf| slf.apu.cycle_nr22_read()),
+            // 0xFF18 => self.apu_cycle(|slf| slf.apu.cycle_nr23_read()),
+            0xFF19 => self.apu_cycle(|slf| slf.apu.cycle_nr24_read()),
+            0xFF1A => self.apu_cycle(|slf| slf.apu.cycle_nr30_read()),
+            // 0xFF1B => self.apu_cycle(|slf| slf.apu.cycle_nr31_read()),
+            0xFF1C => self.apu_cycle(|slf| slf.apu.cycle_nr32_read()),
+            // 0xFF1D => self.apu_cycle(|slf| slf.apu.cycle_nr33_read()),
+            0xFF1E => self.apu_cycle(|slf| slf.apu.cycle_nr34_read()),
+            // 0xFF20 => self.apu_cycle(|slf| slf.apu.cycle_nr41_read()),
+            0xFF21 => self.apu_cycle(|slf| slf.apu.cycle_nr42_read()),
+            0xFF22 => self.apu_cycle(|slf| slf.apu.cycle_nr43_read()),
+            0xFF23 => self.apu_cycle(|slf| slf.apu.cycle_nr44_read()),
+            0xFF24 => self.apu_cycle(|slf| slf.apu.cycle_nr50_read()),
+            0xFF25 => self.apu_cycle(|slf| slf.apu.cycle_nr51_read()),
+            0xFF26 => self.apu_cycle(|slf| slf.apu.cycle_nr52_read()),
+            0xFF30..=0xFF3F => {
+                self.apu_cycle(|slf| slf.apu.cycle_pattern_ram_read((addr - 0xFF30) as u8))
+            }
             0xFF40 => self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.read_lcdc())),
             0xFF41 => self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.read_stat())),
             0xFF42 => self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.scy)),
@@ -413,11 +470,47 @@ impl CpuContext for Context {
                 self.generic_cycle(|_| ())
             }
             0xFF00 => self.generic_cycle(|slf| slf.p1.write(data)),
-            0xFF04 => self.timer_cycle(|slf| slf.timer.cycle_write_div(&mut slf.interrupts, data)),
-            0xFF05 => self.timer_cycle(|slf| slf.timer.cycle_write_tima(&mut slf.interrupts, data)),
-            0xFF06 => self.timer_cycle(|slf| slf.timer.cycle_write_tma(&mut slf.interrupts, data)),
-            0xFF07 => self.timer_cycle(|slf| slf.timer.cycle_write_tac(&mut slf.interrupts, data)),
+            0xFF04 => self.timer_cycle(|slf| {
+                let (timer, mut ctx) = slf.timer_ctx();
+                timer.cycle_write_div(&mut ctx, data)
+            }),
+            0xFF05 => self.timer_cycle(|slf| {
+                let (timer, mut ctx) = slf.timer_ctx();
+                timer.cycle_write_tima(&mut ctx, data)
+            }),
+            0xFF06 => self.timer_cycle(|slf| {
+                let (timer, mut ctx) = slf.timer_ctx();
+                timer.cycle_write_tma(&mut ctx, data)
+            }),
+            0xFF07 => self.timer_cycle(|slf| {
+                let (timer, mut ctx) = slf.timer_ctx();
+                timer.cycle_write_tac(&mut ctx, data)
+            }),
             0xFF0F => self.generic_cycle(|slf| slf.interrupts = (data & 0x1F).into()),
+            0xFF10 => self.apu_cycle(|slf| slf.apu.cycle_nr10_write(data)),
+            0xFF11 => self.apu_cycle(|slf| slf.apu.cycle_nr11_write(data)),
+            0xFF12 => self.apu_cycle(|slf| slf.apu.cycle_nr12_write(data)),
+            0xFF13 => self.apu_cycle(|slf| slf.apu.cycle_nr13_write(data)),
+            0xFF14 => self.apu_cycle(|slf| slf.apu.cycle_nr14_write(data)),
+            0xFF16 => self.apu_cycle(|slf| slf.apu.cycle_nr21_write(data)),
+            0xFF17 => self.apu_cycle(|slf| slf.apu.cycle_nr22_write(data)),
+            0xFF18 => self.apu_cycle(|slf| slf.apu.cycle_nr23_write(data)),
+            0xFF19 => self.apu_cycle(|slf| slf.apu.cycle_nr24_write(data)),
+            0xFF1A => self.apu_cycle(|slf| slf.apu.cycle_nr30_write(data)),
+            0xFF1B => self.apu_cycle(|slf| slf.apu.cycle_nr31_write(data)),
+            0xFF1C => self.apu_cycle(|slf| slf.apu.cycle_nr32_write(data)),
+            0xFF1D => self.apu_cycle(|slf| slf.apu.cycle_nr33_write(data)),
+            0xFF1E => self.apu_cycle(|slf| slf.apu.cycle_nr34_write(data)),
+            0xFF20 => self.apu_cycle(|slf| slf.apu.cycle_nr41_write(data)),
+            0xFF21 => self.apu_cycle(|slf| slf.apu.cycle_nr42_write(data)),
+            0xFF22 => self.apu_cycle(|slf| slf.apu.cycle_nr43_write(data)),
+            0xFF23 => self.apu_cycle(|slf| slf.apu.cycle_nr44_write(data)),
+            0xFF24 => self.apu_cycle(|slf| slf.apu.cycle_nr50_write(data)),
+            0xFF25 => self.apu_cycle(|slf| slf.apu.cycle_nr51_write(data)),
+            0xFF26 => self.apu_cycle(|slf| slf.apu.cycle_nr52_write(data)),
+            0xFF30..=0xFF3F => {
+                self.apu_cycle(|slf| slf.apu.cycle_pattern_ram_write((addr - 0xFF30) as u8, data))
+            }
             0xFF40 => self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.write_lcdc(data))),
             0xFF41 => self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.write_stat(data))),
             0xFF42 => self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.scy = data)),
@@ -527,6 +620,41 @@ impl CpuContext for Context {
     }
 }
 
+pub struct TimerContextImpl<'a> {
+    itrs: &'a mut InterruptFlags,
+    double_speed: bool,
+    apu: &'a mut Apu,
+}
+
+impl<'a> TimerContext for TimerContextImpl<'a> {
+    fn signal_timer_interrupt(&mut self) {
+        self.itrs.set_timer(true);
+    }
+
+    fn is_double_speed(&self) -> bool {
+        self.double_speed
+    }
+
+    fn signal_div_apu_event(&mut self) {
+        self.apu.div_apu_tick();
+    }
+}
+
+impl Context {
+    fn timer_ctx(&'_ mut self) -> (&'_ mut Timer, TimerContextImpl<'_>) {
+        let ctx = TimerContextImpl {
+            itrs: &mut self.interrupts,
+            double_speed: self.key1.current_speed(),
+            apu: &mut self.apu,
+        };
+        (&mut self.timer, ctx)
+    }
+    fn cycle_timer(&mut self) {
+        let (timer, mut ctx) = self.timer_ctx();
+        timer.cycle(&mut ctx);
+    }
+}
+
 pub struct PpuContextImpl<'a> {
     events: &'a mut Events,
     itrs: &'a mut InterruptFlags,
@@ -554,7 +682,7 @@ impl<'a> PpuContext for PpuContextImpl<'a> {
 }
 
 impl Context {
-    fn ppu_ctx(&mut self) -> (&mut Ppu, PpuContextImpl) {
+    fn ppu_ctx(&'_ mut self) -> (&'_ mut Ppu, PpuContextImpl<'_>) {
         let dmg_compatible = self.dmg_compatible();
         let ctx = PpuContextImpl {
             events: &mut self.events,
@@ -593,5 +721,8 @@ impl Context {
     }
     pub fn get_ppu(&self) -> &Ppu {
         &self.ppu
+    }
+    pub fn get_apu(&self) -> &Apu {
+        &self.apu
     }
 }
