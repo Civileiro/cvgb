@@ -48,7 +48,7 @@ impl System {
         let start_time = self.time();
         let mut events: Events = Default::default();
         log::debug!("Trying to advance system by {delta}");
-        while self.time() < target_time && events.empty() {
+        while self.time() < target_time && events.is_empty() {
             events = self.step();
         }
         let elapsed_time = self.time() - start_time;

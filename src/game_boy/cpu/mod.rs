@@ -64,7 +64,7 @@ impl Cpu {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum CPUState {
     #[default]
     Normal,

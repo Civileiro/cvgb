@@ -10,7 +10,7 @@ pub enum Event {
 }
 
 impl Events {
-    pub fn empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         *self == Self::default()
     }
     pub fn signal_event(&mut self, event: Event) {

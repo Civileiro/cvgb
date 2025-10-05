@@ -784,6 +784,8 @@ dependencies = [
  "futures",
  "log",
  "modular-bitfield",
+ "once_cell",
+ "paste",
  "pollster",
  "puffin",
  "puffin_egui",

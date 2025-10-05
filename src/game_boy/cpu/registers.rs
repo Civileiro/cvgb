@@ -23,7 +23,7 @@ pub struct Registers {
 
 #[bitfield(bits = 8)]
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Flags {
     #[skip]
     __: B4,
@@ -66,7 +66,7 @@ impl Registers {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Reg16 {
     AF,
     BC,
@@ -138,7 +138,7 @@ impl Registers {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Reg8 {
     A,
     B,

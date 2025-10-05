@@ -13,7 +13,7 @@ use super::{
 };
 
 #[allow(clippy::upper_case_acronyms, non_camel_case_types)]
-#[derive(Debug, Assoc, Clone, Copy, Default)]
+#[derive(Debug, Assoc, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[func(pub const fn instruction_size(&self) -> usize)]
 #[func(pub fn mneumonic(&self) -> CompactString)]
 pub enum Opcode {
@@ -149,7 +149,7 @@ pub enum Opcode {
     #[assoc(instruction_size = 1, mneumonic = format_compact!("ei"))]
     EI,
     #[assoc(instruction_size = 1, mneumonic = format_compact!("???"))]
-    INVALID,
+    INVALID(u8),
 }
 
 impl Display for Opcode {
@@ -187,7 +187,7 @@ pub enum CBOpcode {
 }
 
 /// Reference to specific registers for use in Opcodes
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum R16mem {
     BC,
     DE,
@@ -261,7 +261,7 @@ impl OutputU8<R16mem> for Cpu {
 }
 
 /// Reference to 8-bit registers and [hl] for use in Opcodes
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum R8 {
     Reg(Reg8),
     HLaddr,
@@ -303,7 +303,7 @@ impl OutputU8<R8> for Cpu {
 }
 
 /// impl CpuCondition for use in Opcodes
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Condition {
     NZ,
     Z,

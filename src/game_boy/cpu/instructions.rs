@@ -83,7 +83,7 @@ impl Execute<Opcode> for Cpu {
             Opcode::LD_sp_hl => self.ld_sp_hl(ctx),
             Opcode::DI => self.di(ctx),
             Opcode::EI => self.ei(ctx),
-            Opcode::INVALID => todo!(),
+            Opcode::INVALID(_) => todo!(),
         }
     }
 }
@@ -397,7 +397,7 @@ impl Cpu {
         self.write(ctx, inoutput, res);
         self.regs.set_z_flag(res == 0);
         self.regs.set_n_flag(false);
-        self.regs.set_h_flag((val & 0x0F) + (res & 0x0F) > 0x0F);
+        self.regs.set_h_flag((val & 0x0F) == 0x0F);
         self.cycle_prefetch(ctx);
     }
     pub fn inc16<T: Copy>(&mut self, ctx: &mut impl CpuContext, inoutput: T)
@@ -418,7 +418,7 @@ impl Cpu {
         self.write(ctx, inoutput, res);
         self.regs.set_z_flag(res == 0);
         self.regs.set_n_flag(true);
-        self.regs.set_h_flag((val & 0x0F) > (res & 0x0F));
+        self.regs.set_h_flag((val & 0x0F) == 0x00);
         self.cycle_prefetch(ctx);
     }
     pub fn dec16<T: Copy>(&mut self, ctx: &mut impl CpuContext, inoutput: T)
@@ -475,7 +475,7 @@ impl Cpu {
         self.regs.set_z_flag(res == 0);
         self.regs.set_n_flag(false);
         self.regs.set_h_flag(false);
-        self.regs.set_c_flag(res & 1 == 1);
+        self.regs.set_c_flag(val & 1 == 1);
         self.cycle_prefetch(ctx);
     }
     pub fn rrca(&mut self, ctx: &mut impl CpuContext) {
@@ -508,7 +508,7 @@ impl Cpu {
         let val = self.read(ctx, inoutput);
         let c = val & 1 == 1;
         let flp = val & 0xFE | self.regs.get_c_flag() as u8;
-        let res = flp.rotate_left(1);
+        let res = flp.rotate_right(1);
         self.regs.a = res;
         self.regs.set_z_flag(res == 0);
         self.regs.set_n_flag(false);
@@ -652,7 +652,7 @@ impl Cpu {
         self.regs.set16(Reg16::HL, res);
         self.regs.set_n_flag(false);
         self.regs
-            .set_h_flag((hl & 0x0FFF) + (res & 0x0FFF) > 0x0FFF);
+            .set_h_flag((hl & 0x0FFF) + (val & 0x0FFF) > 0x0FFF);
         self.regs.set_c_flag(c);
         self.cycle(ctx);
         self.cycle_prefetch(ctx);
@@ -665,7 +665,7 @@ impl Cpu {
         self.regs.set_z_flag(false);
         self.regs.set_n_flag(false);
         self.regs.set_h_flag((sp & 0x0F) + (offset & 0x0F) > 0x0F);
-        self.regs.set_h_flag((sp & 0xFF) + (offset & 0xFF) > 0xFF);
+        self.regs.set_c_flag((sp & 0xFF) + (offset & 0xFF) > 0xFF);
         self.cycle(ctx);
         self.cycle(ctx);
         self.cycle_prefetch(ctx);
@@ -677,13 +677,13 @@ impl Cpu {
         self.regs.set_z_flag(false);
         self.regs.set_n_flag(false);
         self.regs.set_h_flag((sp & 0x0F) + (offset & 0x0F) > 0x0F);
-        self.regs.set_h_flag((sp & 0xFF) + (offset & 0xFF) > 0xFF);
+        self.regs.set_c_flag((sp & 0xFF) + (offset & 0xFF) > 0xFF);
         self.cycle(ctx);
         self.cycle_prefetch(ctx);
     }
     pub fn ld_sp_hl(&mut self, ctx: &mut impl CpuContext) {
         self.cycle(ctx);
-        self.regs.set16(Reg16::HL, self.regs.sp);
+        self.regs.sp = self.regs.get16(Reg16::HL);
         self.cycle_prefetch(ctx);
     }
     pub fn cb_prefix(&mut self, ctx: &mut impl CpuContext) {

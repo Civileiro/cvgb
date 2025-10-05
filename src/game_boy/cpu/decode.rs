@@ -1,4 +1,6 @@
-use compact_str::{CompactString, format_compact};
+use compact_str::format_compact;
+use egui::ahash::{HashMap, HashMapExt};
+use once_cell::sync::Lazy;
 
 use super::{
     opcode::{CBOpcode, Condition, Opcode, R8, R16mem},
@@ -6,6 +8,15 @@ use super::{
 };
 
 const OPCODE_LOOKUP_TABLE: [Opcode; 256] = Opcode::generate_table();
+
+static OPCODE_BYTE_MAP: Lazy<HashMap<Opcode, u8>> = Lazy::new(|| {
+    let mut map = HashMap::new();
+    for i in 0..=u8::MAX {
+        let opcode = Opcode::lookup(i);
+        map.insert(opcode, i);
+    }
+    map
+});
 
 impl Opcode {
     pub fn disassemble(data: &[u8]) -> String {
@@ -30,6 +41,13 @@ impl Opcode {
 
     pub const fn lookup(data: u8) -> Self {
         OPCODE_LOOKUP_TABLE[data as usize]
+    }
+
+    pub fn byte(&self) -> u8 {
+        OPCODE_BYTE_MAP
+            .get(self)
+            .copied()
+            .expect("All opcodes should be registered")
     }
 
     const fn generate_table() -> [Self; 256] {
@@ -149,7 +167,7 @@ impl Opcode {
                     0b111001 => Self::LD_sp_hl,
                     0b110011 => Self::DI,
                     0b111011 => Self::EI,
-                    _ => Self::INVALID,
+                    _ => Self::INVALID(opcode),
                 },
             },
             _ => unreachable!(),
