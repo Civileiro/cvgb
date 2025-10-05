@@ -85,12 +85,23 @@ impl<T: Controller> Controller for Option<T> {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct MBC1 {
     ram_enable: bool,
     rom_bank_number: u8,
     ram_bank_number: u8,
     banking_mode: bool,
+}
+
+impl Default for MBC1 {
+    fn default() -> Self {
+        Self {
+            ram_enable: Default::default(),
+            rom_bank_number: 1,
+            ram_bank_number: Default::default(),
+            banking_mode: Default::default(),
+        }
+    }
 }
 
 impl Controller for MBC1 {
@@ -130,10 +141,7 @@ impl Controller for MBC1 {
                 self.ram_enable = (data & 0x0F) == 0x0A;
             }
             0x2000..0x4000 => {
-                self.rom_bank_number = data & 0x1F;
-                if self.rom_bank_number == 0 {
-                    self.rom_bank_number = 1;
-                }
+                self.rom_bank_number = (data & 0x1F).max(1);
             }
             0x4000..0x6000 => {
                 self.ram_bank_number = data & 0x03;
