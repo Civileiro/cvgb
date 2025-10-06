@@ -2122,7 +2122,18 @@ fn test_0xf3() {
 
 test_invalid!(0xf4);
 
-test_push!(0xf5, a, f, Opcode::PUSH { r16stk: Reg16::AF });
+#[test]
+fn test_0xf5() {
+    let (cpu, ctx) = run_test(&[0xf5], |cpu| {
+        cpu.regs.sp = 0xBEEF;
+        cpu.regs.a = 0x79;
+        cpu.regs.f = 0x42.into();
+    });
+    assert_eq!(ctx.cycle_count, 4);
+    assert_eq!(cpu.regs.sp, 0xBEED);
+    assert_eq!(ctx.memory[0xBEEE], 0x79);
+    assert_eq!(ctx.memory[0xBEED], 0x40);
+}
 
 test_or_a!(0xf6, imm, Opcode::OR_a_imm8);
 

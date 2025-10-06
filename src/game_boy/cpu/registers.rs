@@ -103,7 +103,7 @@ impl Registers {
     pub fn get16(&self, reg: Reg16) -> u16 {
         use Reg16::*;
         match reg {
-            AF => <u16>::from_be_bytes([self.a, self.f.into()]),
+            AF => <u16>::from_be_bytes([self.a, self.f.into()]) & 0xFFF0,
             BC => <u16>::from_be_bytes([self.b, self.c]),
             DE => <u16>::from_be_bytes([self.d, self.e]),
             HL => <u16>::from_be_bytes([self.h, self.l]),
