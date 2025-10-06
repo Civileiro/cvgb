@@ -379,10 +379,16 @@ impl Apu {
         if self.enabled {
             self.vin_left = data & 0x80 != 0;
             self.volume_left = (data >> 4) & 0b111;
-            self.vin_left = data & 0x08 != 0;
+            self.vin_right = data & 0x08 != 0;
             self.volume_right = data & 0b111;
         }
         self.cycle();
+    }
+    fn reset_nr50(&mut self) {
+        self.vin_left = false;
+        self.volume_left = 0;
+        self.vin_right = false;
+        self.volume_right = 0;
     }
     /// Read APU Sound Panning
     pub fn cycle_nr51_read(&mut self) -> u8 {
@@ -395,6 +401,9 @@ impl Apu {
             self.channels = data.into();
         }
         self.cycle();
+    }
+    fn reset_nr51(&mut self) {
+        self.channels = 0.into();
     }
     /// Read Audio Master Control
     pub fn cycle_nr52_read(&mut self) -> u8 {
@@ -416,6 +425,8 @@ impl Apu {
             self.ch3.reset();
             self.ch2.reset();
             self.ch1.reset();
+            self.reset_nr50();
+            self.reset_nr51();
         }
     }
     pub fn cycle_pcm12_read(&mut self) -> u8 {
