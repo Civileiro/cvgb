@@ -4,17 +4,15 @@ mod config;
 mod context;
 mod cpu;
 mod events;
-mod input;
 mod system;
 mod time;
 
 pub use boot_rom::BootRom;
 pub use cartridge::{Cartridge, Rom};
 pub use config::Config;
-pub use context::{AudioOutput, Palette};
+pub use context::{AudioOutput, Input, Palette};
 pub use cpu::{Cpu, opcode::Opcode};
 pub use events::Events;
-pub use input::Input;
 pub use system::System;
 pub use time::SystemTime;
 

@@ -1,14 +1,51 @@
-use crate::game_boy::input::Input;
-
 const SELECT_BUTTONS_MASK: u8 = 0b0010_0000;
 const SELECT_DPAD_MASK: u8 = 0b0001_0000;
 
 #[derive(Debug, Default)]
 /// The Game Boy P1 register contains all the input information
 pub struct P1 {
-    input: Input,
+    input: P1Reg,
     select_buttons: bool,
     select_dpad: bool,
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+struct P1Reg(u8);
+
+impl P1Reg {
+    pub fn bits(self) -> u8 {
+        self.0
+    }
+    /// The nibble representing the buttons
+    /// An unset bit means that button is pressed
+    pub fn buttons_nibble(self) -> u8 {
+        let byte: u8 = self.bits();
+        !((byte >> 4) & 0b1111)
+    }
+    /// The nibble representing the dpad
+    /// An unset bit means that direction is pressed
+    pub fn dpad_nibble(self) -> u8 {
+        let byte: u8 = self.bits();
+        !(byte & 0b1111)
+    }
+    pub fn press(&mut self, input: Input) {
+        self.0 |= input as u8
+    }
+    pub fn unpress(&mut self, input: Input) {
+        self.0 &= !(input as u8)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Input {
+    Right = 0b0000_0001,
+    Left = 0b0000_0010,
+    Up = 0b0000_0100,
+    Down = 0b0000_1000,
+    A = 0b0001_0000,
+    B = 0b0010_0000,
+    Select = 0b0100_0000,
+    Start = 0b1000_0000,
 }
 
 impl P1 {
@@ -43,18 +80,13 @@ impl P1 {
         old_line && !new_line
     }
 
-    /// Sets the input information, returns true if the joypad interrupt was triggered
-    pub fn set_input(&mut self, input: Input) -> bool {
-        self.watch_interrupt_line(|slf| slf.input = input)
-    }
-
     /// Presses button(s), returns true if the joypad interrupt was triggered
     pub fn press(&mut self, input: Input) -> bool {
-        self.watch_interrupt_line(|slf| slf.input |= input)
+        self.watch_interrupt_line(|slf| slf.input.press(input))
     }
 
     /// Unpresses button(s), returns true if the joypad interrupt was triggered
     pub fn unpress(&mut self, input: Input) -> bool {
-        self.watch_interrupt_line(|slf| slf.input &= !input)
+        self.watch_interrupt_line(|slf| slf.input.unpress(input))
     }
 }

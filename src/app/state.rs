@@ -45,14 +45,14 @@ impl AppState {
         if let PhysicalKey::Code(code) = event.physical_key {
             // TODO: remappable keys
             if let Some(input) = match code {
-                KeyCode::ArrowRight => Some(game_boy::Input::RIGHT),
-                KeyCode::ArrowLeft => Some(game_boy::Input::LEFT),
-                KeyCode::ArrowUp => Some(game_boy::Input::UP),
-                KeyCode::ArrowDown => Some(game_boy::Input::DOWN),
+                KeyCode::ArrowRight => Some(game_boy::Input::Right),
+                KeyCode::ArrowLeft => Some(game_boy::Input::Left),
+                KeyCode::ArrowUp => Some(game_boy::Input::Up),
+                KeyCode::ArrowDown => Some(game_boy::Input::Down),
                 KeyCode::KeyX => Some(game_boy::Input::A),
                 KeyCode::KeyZ => Some(game_boy::Input::B),
-                KeyCode::KeyA => Some(game_boy::Input::SELECT),
-                KeyCode::KeyS => Some(game_boy::Input::START),
+                KeyCode::KeyA => Some(game_boy::Input::Select),
+                KeyCode::KeyS => Some(game_boy::Input::Start),
                 _ => None,
             } && let Some(system) = self.emulation_state.as_mut()
             {

@@ -55,9 +55,6 @@ impl System {
         log::debug!("Advanced system by {elapsed_time}");
         (events, elapsed_time)
     }
-    pub fn set_input(&mut self, input: Input) {
-        self.context.set_input(input);
-    }
     pub fn press_key(&mut self, input: Input) {
         self.context.press_key(input);
     }

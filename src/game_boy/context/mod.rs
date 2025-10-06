@@ -5,6 +5,7 @@ use hram::HighRam;
 use interrupts::{Interrupt, InterruptFlags};
 use key1::Key1;
 use oam_dma::OamDma;
+pub use p1::Input;
 use p1::P1;
 use ppu::{Ppu, PpuContext};
 use timer::Timer;
@@ -16,7 +17,6 @@ use super::{
     context::timer::TimerContext,
     cpu::{CPUState, CpuContext},
     events::{Event, Events},
-    input::Input,
     time::SystemTime,
 };
 
@@ -125,11 +125,6 @@ impl Context {
     }
     pub fn system_time(&self) -> SystemTime {
         self.time
-    }
-    pub fn set_input(&mut self, input: Input) {
-        if self.p1.set_input(input) {
-            self.interrupts.set_joypad(true);
-        }
     }
     pub fn fetch_clear_events(&mut self) -> Events {
         std::mem::take(&mut self.events)
