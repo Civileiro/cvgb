@@ -49,8 +49,7 @@ impl Ch1 {
     }
     pub fn trigger(&mut self) {
         if self.length_timer == CH1_LENGTH_TIMER_MAX {
-            // TODO: check if it has to be reset to 0 instead
-            self.length_timer = self.initial_length_timer;
+            self.length_timer = 0;
         }
         self.active = true;
         self.period_divider = self.sweep.period;
@@ -96,6 +95,7 @@ impl Ch1 {
     pub fn write_wave_duty_and_length_timer(&mut self, data: u8) {
         self.wave_duty = WaveDuty::from(data >> 6).unwrap();
         self.initial_length_timer = (data & 0x3F) as usize;
+        self.length_timer = self.initial_length_timer;
     }
     pub fn read_volume_and_envelope(&self) -> u8 {
         self.init_envelope.read()

@@ -90,7 +90,7 @@ impl Ch4 {
     }
     fn trigger(&mut self) {
         if self.length_timer == CH4_LENGTH_TIMER_MAX {
-            self.length_timer = self.initial_length_timer
+            self.length_timer = 0;
         }
         self.active = true;
         self.active_envelope = self.init_envelope;
@@ -109,6 +109,7 @@ impl Ch4 {
     }
     pub fn write_length_timer(&mut self, data: u8) {
         self.initial_length_timer = (data & 0x3F) as usize;
+        self.length_timer = self.initial_length_timer;
     }
     pub fn read_volume_and_envelope(&self) -> u8 {
         self.init_envelope.read()
