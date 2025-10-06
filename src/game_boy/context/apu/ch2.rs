@@ -11,6 +11,7 @@ pub struct Ch2 {
     initial_length_timer: usize,
     length_timer: usize,
     length_timer_enable: bool,
+    next_tick_triggers_length: bool,
     period: u16,
     period_divider: u16,
     init_envelope: Envelope,
@@ -52,9 +53,13 @@ impl Ch2 {
     }
     pub fn trigger(&mut self) {
         if self.length_timer == CH2_LENGTH_TIMER_MAX {
-            self.length_timer = 0;
+            self.length_timer = if !self.next_tick_triggers_length && self.length_timer_enable {
+                1
+            } else {
+                0
+            };
         }
-        self.active = true;
+        self.active = self.dac_active();
         self.period_divider = self.period;
         self.active_envelope = self.init_envelope;
     }
@@ -68,6 +73,19 @@ impl Ch2 {
             if self.length_timer == CH2_LENGTH_TIMER_MAX {
                 self.active = false
             }
+        }
+    }
+    pub fn signal_next_tick_length(&mut self, next_ticks: bool) {
+        self.next_tick_triggers_length = next_ticks
+    }
+    pub fn set_length_timer_enable(&mut self, length_timer_enable: bool) {
+        let prev_enable = self.length_timer_enable;
+        self.length_timer_enable = length_timer_enable;
+        // extra length tick occurs if next DIV-APU doesnt tick it
+        // and it was just enabled, this does disable the channel if the
+        // timer expires and it isnt being triggered in the same write
+        if !self.next_tick_triggers_length && self.length_timer_enable && !prev_enable {
+            self.length_timer_tick();
         }
     }
     pub fn envelope_tick(&mut self) {
@@ -101,8 +119,8 @@ impl Ch2 {
         let trigger = (data >> 7) != 0;
         self.period &= 0x00FF;
         self.period |= ((data & 0b111) as u16) << 8;
-        self.length_timer_enable = (data >> 6) & 1 != 0;
-        if trigger && self.dac_active() {
+        self.set_length_timer_enable((data >> 6) & 1 != 0);
+        if trigger {
             self.trigger();
         }
     }

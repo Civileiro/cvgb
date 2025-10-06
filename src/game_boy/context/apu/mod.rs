@@ -145,6 +145,16 @@ impl Apu {
             self.ch2.length_timer_tick();
             self.ch3.length_timer_tick();
             self.ch4.length_timer_tick();
+
+            self.ch1.signal_next_tick_length(false);
+            self.ch2.signal_next_tick_length(false);
+            self.ch3.signal_next_tick_length(false);
+            self.ch4.signal_next_tick_length(false);
+        } else {
+            self.ch1.signal_next_tick_length(true);
+            self.ch2.signal_next_tick_length(true);
+            self.ch3.signal_next_tick_length(true);
+            self.ch4.signal_next_tick_length(true);
         }
         if self.div_apu_counter.is_multiple_of(4) {
             self.ch1.sweep_tick();
