@@ -3,6 +3,7 @@ mod instructions;
 
 #[macro_use]
 mod macros;
+mod prefix;
 
 use crate::game_boy::{
     Events,

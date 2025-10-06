@@ -490,7 +490,7 @@ impl Cpu {
         let rot = val.rotate_left(1);
         let res = rot & 0xFE | self.regs.get_c_flag() as u8;
         let c = rot & 1 == 1;
-        self.regs.a = res;
+        self.write(ctx, inoutput, res);
         self.regs.set_z_flag(res == 0);
         self.regs.set_n_flag(false);
         self.regs.set_h_flag(false);
@@ -509,7 +509,7 @@ impl Cpu {
         let c = val & 1 == 1;
         let flp = val & 0xFE | self.regs.get_c_flag() as u8;
         let res = flp.rotate_right(1);
-        self.regs.a = res;
+        self.write(ctx, inoutput, res);
         self.regs.set_z_flag(res == 0);
         self.regs.set_n_flag(false);
         self.regs.set_h_flag(false);
@@ -568,7 +568,7 @@ impl Cpu {
         let c = val & 1 != 0;
         let b8 = val & 0x80;
         let res = (val >> 1) | b8;
-        self.regs.a = res;
+        self.write(ctx, inoutput, res);
         self.regs.set_z_flag(res == 0);
         self.regs.set_n_flag(false);
         self.regs.set_h_flag(false);
@@ -583,7 +583,7 @@ impl Cpu {
         let low = val & 0x0F;
         let high = val & 0xF0;
         let res = (low << 4) | (high >> 4);
-        self.regs.a = res;
+        self.write(ctx, inoutput, res);
         self.regs.set_z_flag(res == 0);
         self.regs.set_n_flag(false);
         self.regs.set_h_flag(false);

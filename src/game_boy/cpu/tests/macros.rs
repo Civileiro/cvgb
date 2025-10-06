@@ -403,13 +403,19 @@ macro_rules! test_ld_r8_r8 {
 pub(crate) use test_ld_r8_r8;
 
 macro_rules! set_reg {
-    ($cpu:ident, imm, $input:literal) => {};
-    ($cpu:ident, hl, $input:literal) => {
-        $cpu.regs.h = 0x00;
-        $cpu.regs.l = 0x02;
+    ($cpu:ident, imm, $input:expr) => {};
+    ($cpu:ident, hl, $input:expr) => {
+        set_reg!($cpu, hl, $input, 0x0002);
     };
-    ($cpu:ident, $reg:ident, $input:literal) => {
+    ($cpu:ident, $reg:ident, $input:expr) => {
         $cpu.regs.$reg = $input;
+    };
+    ($cpu:ident, hl, $input:expr, $addr:literal) => {
+        $cpu.regs.h = ($addr >> 8) as u8;
+        $cpu.regs.l = $addr as u8;
+    };
+    ($cpu:ident, $reg:ident, $input:expr, $addr:literal) => {
+        set_reg!($cpu, $reg, $input);
     };
 }
 

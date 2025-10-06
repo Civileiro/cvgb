@@ -186,6 +186,12 @@ pub enum CBOpcode {
     SET { b3: u8, r8: R8 },
 }
 
+impl Display for CBOpcode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.mneumonic())
+    }
+}
+
 /// Reference to specific registers for use in Opcodes
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum R16mem {

@@ -1896,7 +1896,7 @@ fn test_0xc9() {
 
 test_jp_cc!(0xca, z, true, Opcode::JP_cond_imm16 { cond: Condition::Z });
 
-// TODO: prefix
+// 0xCB PREFIX tests in the other file
 
 test_call_cc!(
     0xcc,
