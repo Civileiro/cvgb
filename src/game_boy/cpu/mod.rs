@@ -59,6 +59,11 @@ impl Cpu {
     pub fn requested_interrupts(&self) -> InterruptFlags {
         self.rqst_itrs
     }
+    pub fn set_requested_interrupts(&mut self, rqst_itrs: InterruptFlags) {
+        if self.ime {
+            self.rqst_itrs = rqst_itrs
+        }
+    }
     pub fn state(&self) -> CPUState {
         self.state
     }
@@ -196,7 +201,11 @@ impl Cpu {
             self.set_opcode(ctx, data, addr);
         } else if self.state.is_halt() {
             // In HALT mode the CPU does nothing while waiting for an interrupt
-            self.rqst_itrs = ctx.cycle_state_itrs(self.state);
+            let rqst_itrs = ctx.cycle_state_itrs(self.state);
+            self.set_requested_interrupts(rqst_itrs);
+            if rqst_itrs.has_interrupt() {
+                self.state.reset();
+            }
             // May also exit with a timer
             if self.state.dec_halt_timer() {
                 self.state.reset();
@@ -216,9 +225,7 @@ impl Cpu {
             self.regs.inc_pc();
         }
         self.set_opcode(ctx, next_opcode, opcode_addr);
-        if self.ime {
-            self.rqst_itrs = rqst_itrs;
-        }
+        self.set_requested_interrupts(rqst_itrs);
     }
     // The halt function is here and not in instructions.rs bc it's logic is
     // entangled with cycle_prefetch and the halt bug
