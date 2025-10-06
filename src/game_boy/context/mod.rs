@@ -148,8 +148,11 @@ impl Context {
     fn active_interrupts(&self) -> InterruptFlags {
         (Into::<u8>::into(self.interrupts) & Into::<u8>::into(self.interrupt_enable)).into()
     }
+    pub fn is_double_speed(&self) -> bool {
+        self.key1.current_speed()
+    }
     fn is_double_speed_cycle(&self) -> bool {
-        self.key1.current_speed() && !self.time.cycles().is_multiple_of(4)
+        self.is_double_speed() && !self.time.cycles().is_multiple_of(4)
     }
     fn set_dmg_compatibility(&mut self, compat: bool) {
         self.dmg_compatibility = compat

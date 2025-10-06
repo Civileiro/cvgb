@@ -186,7 +186,7 @@ pub mod options_ui {
                                 .show_inside(ui, |ui| {
                                     egui::ScrollArea::vertical().show(ui, |ui| {
                                         ui.vertical_centered(|ui| ui.heading("CPU"));
-                                        show_cpu(ui, emu.get_cpu());
+                                        show_cpu(ui, emu);
                                         ui.separator();
                                         show_disassembly(ui, emu);
                                     });
@@ -206,7 +206,8 @@ pub mod options_ui {
         }
     }
 
-    fn show_cpu(ui: &mut egui::Ui, cpu: &game_boy::Cpu) {
+    fn show_cpu(ui: &mut egui::Ui, emu: &game_boy::System) {
+        let (cpu, ctx) = emu.get_cpu_context();
         let regs = cpu.get_registers();
         let itrs = cpu.requested_interrupts();
         let flag_color = |flag: bool| {
@@ -236,6 +237,7 @@ pub mod options_ui {
                 ("H", regs.get_h_flag()),
                 ("C", regs.get_c_flag()),
                 ("IME", cpu.get_ime()),
+                ("2XSPEED", ctx.is_double_speed()),
             ] {
                 ui.label(egui::RichText::new(label).color(flag_color(flag)));
             }
