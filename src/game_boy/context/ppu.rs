@@ -1,5 +1,3 @@
-// Most things here are placeholders
-
 use std::fmt::Debug;
 
 use arrayvec::ArrayVec;

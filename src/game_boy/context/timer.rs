@@ -1,7 +1,5 @@
 use modular_bitfield::prelude::*;
 
-use super::interrupts::InterruptFlags;
-
 #[derive(Debug, Default)]
 pub struct Timer {
     sys_clock: u16,
