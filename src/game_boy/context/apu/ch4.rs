@@ -136,7 +136,7 @@ impl Ch4 {
     pub fn write_control(&mut self, data: u8) {
         let trigger = (data >> 7) != 0;
         self.length_timer_enable = data & 0x40 != 0;
-        if trigger {
+        if trigger && self.dac_active() {
             self.trigger()
         }
     }

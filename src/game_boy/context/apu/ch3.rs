@@ -181,7 +181,7 @@ impl Ch3 {
         self.period &= 0x00FF;
         self.period |= ((data & 0b111) as u16) << 8;
         self.length_timer_enable = (data >> 6) & 1 != 0;
-        if trigger {
+        if trigger && self.dac_active() {
             self.trigger();
         }
     }
