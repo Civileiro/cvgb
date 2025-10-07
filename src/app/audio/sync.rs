@@ -36,7 +36,10 @@ impl EmulationAudioSync {
             && let Some(last) = self.last_vblank
         {
             let delta = last.elapsed();
-            self.deltas.push_overwrite(delta);
+            // we consider a delta bellow 2ms or higher than 100ms outliers
+            if delta.as_micros() > 2_000 && delta.as_micros() < 100_000 {
+                self.deltas.push_overwrite(delta);
+            }
         }
         self.is_sleeping = false;
         self.last_vblank = Some(Instant::now())
