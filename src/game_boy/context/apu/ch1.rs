@@ -105,7 +105,11 @@ impl Ch1 {
         self.sweep.read()
     }
     pub fn write_sweep(&mut self, data: u8) {
-        self.sweep.write(data);
+        let mut disable_channel = false;
+        self.sweep.write(data, &mut disable_channel);
+        if disable_channel {
+            self.active = false
+        }
     }
     pub fn read_wave_duty(&self) -> u8 {
         (self.wave_duty as u8) << 6 | 0b0011_1111
