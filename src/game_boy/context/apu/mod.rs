@@ -18,7 +18,7 @@ mod wave_duty;
 #[derive(Debug, Default)]
 pub struct Apu {
     enabled: bool,
-    div_apu_counter: usize,
+    frame_sequencer: FrameSequencer,
     double_speed_cycle: bool,
     channels: Channels,
     vin_left: bool,
@@ -47,6 +47,25 @@ pub struct Channels {
     pub ch2_left: bool,
     pub ch3_left: bool,
     pub ch4_left: bool,
+}
+
+#[derive(Debug, Default)]
+struct FrameSequencer(u8);
+
+impl FrameSequencer {
+    pub fn tick(&mut self) {
+        self.0 += 1;
+        self.0 &= 0b111;
+    }
+    pub fn length_tick(&self) -> bool {
+        self.0.is_multiple_of(2)
+    }
+    pub fn sweep_tick(&self) -> bool {
+        self.0 == 2 || self.0 == 6
+    }
+    pub fn envelope_tick(&self) -> bool {
+        self.0 == 7
+    }
 }
 
 impl Apu {
@@ -139,8 +158,8 @@ impl Apu {
         self.double_speed_cycle = true
     }
     pub fn div_apu_tick(&mut self) {
-        self.div_apu_counter += 1;
-        if self.div_apu_counter.is_multiple_of(2) {
+        self.frame_sequencer.tick();
+        if self.frame_sequencer.length_tick() {
             self.ch1.length_timer_tick();
             self.ch2.length_timer_tick();
             self.ch3.length_timer_tick();
@@ -156,10 +175,10 @@ impl Apu {
             self.ch3.signal_next_tick_length(true);
             self.ch4.signal_next_tick_length(true);
         }
-        if self.div_apu_counter.is_multiple_of(4) {
+        if self.frame_sequencer.sweep_tick() {
             self.ch1.sweep_tick();
         }
-        if self.div_apu_counter.is_multiple_of(8) {
+        if self.frame_sequencer.envelope_tick() {
             self.ch1.envelope_tick();
             self.ch2.envelope_tick();
             self.ch4.envelope_tick();
