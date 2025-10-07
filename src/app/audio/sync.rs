@@ -4,7 +4,7 @@ use std::{
 };
 
 use egui::mutex::Mutex;
-use ringbuf::traits::{Consumer, Observer, Producer, RingBuffer, Split};
+use ringbuf::traits::{Consumer, Observer, RingBuffer};
 
 use super::game_boy;
 

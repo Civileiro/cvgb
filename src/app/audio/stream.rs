@@ -1,4 +1,4 @@
-use cpal::{BufferSize, traits::DeviceTrait};
+use cpal::traits::DeviceTrait;
 use ringbuf::traits::{Consumer, Observer, Producer, Split};
 
 use crate::app::audio::sync::{StreamStats, StreamStatsCollector};

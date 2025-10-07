@@ -4,11 +4,10 @@ mod sync;
 
 use std::{
     fmt::Debug,
-    sync::{Arc, RwLock, RwLockWriteGuard, atomic::AtomicU32},
+    sync::{Arc, atomic::AtomicU32},
 };
 
 use cpal::traits::{DeviceTrait, HostTrait};
-use log::info;
 
 use crate::game_boy;
 use stream::AudioStream;
