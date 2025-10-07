@@ -66,6 +66,9 @@ impl FrameSequencer {
     pub fn envelope_tick(&self) -> bool {
         self.0 == 7
     }
+    pub fn power_on(&mut self) {
+        self.0 = 7
+    }
 }
 
 impl Apu {
@@ -448,6 +451,7 @@ impl Apu {
     /// Write Audio Master Control
     pub fn cycle_nr52_write(&mut self, data: u8) {
         self.cycle();
+        let old_enabled = self.enabled;
         self.enabled = data & 0x80 != 0;
         if !self.enabled {
             self.ch4.reset();
@@ -456,6 +460,8 @@ impl Apu {
             self.ch1.reset();
             self.reset_nr50();
             self.reset_nr51();
+        } else if !old_enabled && self.enabled {
+            self.frame_sequencer.power_on();
         }
     }
     pub fn cycle_pcm12_read(&mut self) -> u8 {
