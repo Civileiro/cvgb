@@ -776,10 +776,12 @@ impl VideoBuffer {
                     }
                 }
 
-                // TODO: adjust colors
-                buffer.push(color.red() << 3);
-                buffer.push(color.green() << 3);
-                buffer.push(color.blue() << 3);
+                let r = color.red() as u16;
+                let g = color.green() as u16;
+                let b = color.blue() as u16;
+                buffer.push(((r * 13 + g * 2 + b) / 2) as u8);
+                buffer.push(((g * 3 + b) * 2) as u8);
+                buffer.push(((r * 3 + g * 2 + b * 11) / 2) as u8);
                 buffer.push(0xFF);
             }
         }
