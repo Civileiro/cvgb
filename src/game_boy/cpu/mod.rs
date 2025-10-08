@@ -138,8 +138,6 @@ pub trait CpuContext {
     }
     /// Confirm that an interrupt was serviced
     fn ack_interrupt(&mut self, itr: Interrupt);
-    /// Check if theres a pending interrupt
-    fn has_interrupt(&mut self) -> bool;
     /// Switch context speed (CGB)
     fn speed_switch(&mut self);
     fn has_speed_switch_armed(&self) -> bool;
@@ -265,20 +263,19 @@ impl Cpu {
 
     pub fn stop(&mut self, ctx: &mut impl CpuContext) {
         if ctx.has_pressed_input() {
-            if ctx.has_interrupt() {
+            if self.rqst_itrs.has_interrupt() {
                 self.cycle_prefetch(ctx);
             } else {
                 let _ = self.cycle_read_pc(ctx);
                 self.state.set_stop();
             }
         } else if ctx.has_speed_switch_armed() {
-            if ctx.has_interrupt() {
+            if self.rqst_itrs.has_interrupt() {
                 if self.ime {
                     ctx.reset_div();
                     ctx.speed_switch();
                 } else {
-                    log::error!("Entered CPU glitch state");
-                    todo!("crash event")
+                    panic!("Entered CPU glitch state");
                 }
             } else {
                 let _ = self.cycle_read_pc(ctx);
@@ -287,7 +284,7 @@ impl Cpu {
                 ctx.speed_switch();
             }
         } else {
-            if !ctx.has_interrupt() {
+            if !self.rqst_itrs.has_interrupt() {
                 let _ = self.cycle_read_pc(ctx);
             }
             self.state.set_stop();

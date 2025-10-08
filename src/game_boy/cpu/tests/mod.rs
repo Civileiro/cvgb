@@ -70,10 +70,6 @@ impl CpuContext for StubContext {
 
     fn ack_interrupt(&mut self, _: Interrupt) {}
 
-    fn has_interrupt(&mut self) -> bool {
-        false
-    }
-
     fn speed_switch(&mut self) {}
 
     fn has_pressed_input(&self) -> bool {

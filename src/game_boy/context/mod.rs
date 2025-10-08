@@ -595,10 +595,6 @@ impl CpuContext for Context {
         }
     }
 
-    fn has_interrupt(&mut self) -> bool {
-        self.interrupts.has_interrupt()
-    }
-
     fn speed_switch(&mut self) {
         self.key1.switch_speed();
     }
