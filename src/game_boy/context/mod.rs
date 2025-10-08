@@ -436,6 +436,8 @@ impl CpuContext for Context {
                 self.ppu_cycle(|slf| slf.cycle_ppu_read(|ppu| ppu.opri as u8 | 0xFE))
             }
             0xFF70 if self.access_cgb_reg() => self.generic_cycle(|slf| slf.wram.read_svbk()),
+            0xFF76 if self.access_cgb_reg() => self.apu_cycle(|slf| slf.apu.cycle_pcm12_read()),
+            0xFF77 if self.access_cgb_reg() => self.apu_cycle(|slf| slf.apu.cycle_pcm34_read()),
             0xFF80..0xFFFF => self.generic_cycle(|slf| slf.hram.read(addr)),
             0xFFFF => self.generic_cycle(|slf| slf.interrupt_enable),
             _ => {
