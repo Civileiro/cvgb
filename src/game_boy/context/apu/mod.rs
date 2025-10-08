@@ -1,18 +1,16 @@
-use ch1::Ch1;
-use ch2::Ch2;
-use ch3::Ch3;
-use ch4::Ch4;
 use modular_bitfield::prelude::*;
+use noise_channel::NoiseChannel;
 pub use output::{AudioBuffer, AudioOutput};
+use square_channel::SquareChannel;
+use wave_channel::WaveChannel;
 
 use crate::game_boy::{self, context::IntoData};
-mod ch1;
-mod ch2;
-mod ch3;
-mod ch4;
 mod envelope;
+mod noise_channel;
 mod output;
+mod square_channel;
 mod sweep;
+mod wave_channel;
 mod wave_duty;
 
 #[derive(Debug, Default)]
@@ -28,10 +26,10 @@ pub struct Apu {
     volume_right: u8,
     capacitor_left: f32,
     capacitor_right: f32,
-    ch1: Ch1,
-    ch2: Ch2,
-    ch3: Ch3,
-    ch4: Ch4,
+    ch1: SquareChannel,
+    ch2: SquareChannel,
+    ch3: WaveChannel,
+    ch4: NoiseChannel,
 
     output_buffer: AudioBuffer,
 }

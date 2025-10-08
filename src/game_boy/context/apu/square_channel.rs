@@ -3,7 +3,7 @@ use super::{envelope::Envelope, sweep::Sweep, wave_duty::WaveDuty};
 const CH1_LENGTH_TIMER_MAX: usize = 64;
 
 #[derive(Debug, Default)]
-pub struct Ch1 {
+pub struct SquareChannel {
     active: bool,
     sweep: Sweep,
     wave_duty: WaveDuty,
@@ -18,7 +18,7 @@ pub struct Ch1 {
     active_envelope: Envelope,
 }
 
-impl Ch1 {
+impl SquareChannel {
     const DUTY_TABLE: [u8; 4] = [0b1111_1110, 0b0111_1110, 0b0111_1000, 0b1000_0001];
 
     fn sample(&mut self) -> bool {

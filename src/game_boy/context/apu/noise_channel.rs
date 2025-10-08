@@ -3,7 +3,7 @@ use super::envelope::Envelope;
 const CH4_LENGTH_TIMER_MAX: usize = 64;
 
 #[derive(Debug, Default)]
-pub struct Ch4 {
+pub struct NoiseChannel {
     active: bool,
     initial_length_timer: usize,
     length_timer: usize,
@@ -67,7 +67,7 @@ impl Lfsr {
     }
 }
 
-impl Ch4 {
+impl NoiseChannel {
     pub fn clock(&mut self) {
         if let Some(sample) = self.lfsr.clock() {
             self.output = if sample {

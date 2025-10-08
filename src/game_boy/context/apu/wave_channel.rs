@@ -2,7 +2,7 @@ const CH3_LENGTH_TIMER_MAX: usize = 256;
 const READ_QUEUE_SIZE: usize = 2;
 
 #[derive(Debug, Default)]
-pub struct Ch3 {
+pub struct WaveChannel {
     dac_enable: bool,
     active: bool,
     initial_length_timer: usize,
@@ -90,7 +90,7 @@ impl WaveRam {
     }
 }
 
-impl Ch3 {
+impl WaveChannel {
     pub fn single_clock(&mut self) {
         if !self.active {
             self.output = 0;
