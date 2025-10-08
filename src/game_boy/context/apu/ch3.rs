@@ -1,4 +1,5 @@
 const CH3_LENGTH_TIMER_MAX: usize = 256;
+const READ_QUEUE_SIZE: usize = 2;
 
 #[derive(Debug, Default)]
 pub struct Ch3 {
@@ -14,6 +15,8 @@ pub struct Ch3 {
     period_divider: u16,
     wave_ram: WaveRam,
     read_buffer: u8,
+    start_delay: bool,
+    read_queue: [Option<u8>; READ_QUEUE_SIZE],
     output: u8,
 }
 
@@ -54,69 +57,66 @@ struct WaveRam {
     ram: [u8; 16],
     /// index into the nibbles of the ram
     index: u8,
-    /// Flag to indicate if ch3 accessed wave ram this cycle
-    ch3_access: bool,
 }
 
 impl WaveRam {
     /// Read the nibble the index is pointing to
-    fn read_index(&mut self) -> u8 {
-        // TODO: playback delay
-        let byte = self.ram[self.index as usize / 2];
+    fn read_index(&self) -> u8 {
+        let byte = self.get_index_byte();
         let upper = self.index.is_multiple_of(2);
         if upper { byte >> 4 } else { byte & 0x0F }
     }
-    fn inc_index(&mut self) {
+    pub fn get_index_byte(&self) -> u8 {
+        self.ram[self.index as usize / 2]
+    }
+    pub fn get_index_byte_mut(&mut self) -> &mut u8 {
+        &mut self.ram[self.index as usize / 2]
+    }
+    pub fn inc_index(&mut self) {
         self.index += 1;
         self.index &= 0x1F;
     }
+    fn is_at_start(&self) -> bool {
+        self.index == 0
+    }
     pub fn reset_index(&mut self) {
         self.index = 0;
-        self.ch3_access = false;
     }
-    /// Read the nibble the index is pointing to
-    pub fn ch3_inc_read_index(&mut self) -> u8 {
-        self.ch3_access = true;
-        self.inc_index();
-        self.read_index()
-    }
-    pub fn ch3_clear_access(&mut self) {
-        self.ch3_access = false
-    }
-    pub fn cpu_read_byte(&self, mut index: u8) -> u8 {
-        // Change index if ch3 accessed ram this cycle
-        if self.ch3_access {
-            index = self.index / 2;
-        }
+    pub fn read_byte(&self, index: u8) -> u8 {
         self.ram[index as usize]
     }
-    pub fn cpu_write_byte(&mut self, mut index: u8, data: u8) {
-        // Change index if ch3 accessed ram this cycle
-        if self.ch3_access {
-            index = self.index / 2;
-        }
+    pub fn write_byte(&mut self, index: u8, data: u8) {
         self.ram[index as usize] = data
     }
 }
 
 impl Ch3 {
-    pub fn clock(&mut self) {
+    pub fn single_clock(&mut self) {
         if !self.active {
+            self.output = 0;
             return;
         }
-        self.period_divider += 1;
-        if self.period_divider > 0xFFF {
-            self.period_divider = self.period;
-            let sample = self.read_buffer;
-            self.read_buffer = self.wave_ram.ch3_inc_read_index();
-            self.output = if self.is_active() {
-                self.active_volume.apply_volume(sample)
-            } else {
-                0
-            }
-        } else {
-            self.wave_ram.ch3_clear_access();
+        if self.start_delay {
+            self.start_delay = false;
+            return;
         }
+        if let Some(sample) = self.read_queue[0] {
+            self.read_queue[0] = None;
+            self.read_buffer = sample;
+            self.output = self.active_volume.apply_volume(self.read_buffer);
+        }
+        self.read_queue.rotate_left(1);
+        self.period_divider += 1;
+        if self.period_divider > 0x7FF {
+            self.period_divider = self.period;
+            self.wave_ram.inc_index();
+            let sample = self.wave_ram.read_index();
+            self.read_queue[READ_QUEUE_SIZE - 1] = Some(sample);
+        }
+    }
+    pub fn double_clock(&mut self) {
+        self.single_clock();
+        self.single_clock();
     }
     pub fn get_output(&self) -> u8 {
         self.output
@@ -142,9 +142,11 @@ impl Ch3 {
             };
         }
         self.active = self.dac_active();
+        self.start_delay = true;
         self.period_divider = self.period;
         self.active_volume = self.initial_volume;
         self.wave_ram.reset_index();
+        self.output = self.active_volume.apply_volume(self.read_buffer);
     }
     pub fn length_timer_tick(&mut self) {
         if self.length_timer_enable && self.length_timer != CH3_LENGTH_TIMER_MAX {
@@ -204,9 +206,17 @@ impl Ch3 {
         }
     }
     pub fn read_wave_ram(&self, index: u8) -> u8 {
-        self.wave_ram.cpu_read_byte(index)
+        if self.active {
+            self.wave_ram.get_index_byte()
+        } else {
+            self.wave_ram.read_byte(index)
+        }
     }
     pub fn write_wave_ram(&mut self, index: u8, data: u8) {
-        self.wave_ram.cpu_write_byte(index, data);
+        if self.active {
+            *self.wave_ram.get_index_byte_mut() = data;
+        } else {
+            self.wave_ram.write_byte(index, data);
+        }
     }
 }

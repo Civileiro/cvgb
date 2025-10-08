@@ -20,6 +20,7 @@ pub struct Apu {
     enabled: bool,
     frame_sequencer: FrameSequencer,
     double_speed_cycle: bool,
+    ch3_single_clocked: bool,
     channels: Channels,
     vin_left: bool,
     vin_right: bool,
@@ -75,11 +76,18 @@ impl Apu {
     pub fn cycle(&mut self) {
         if self.double_speed_cycle {
             self.double_speed_cycle = false;
+            self.ch3_single_clocked = true;
+            self.ch3.single_clock();
             return;
         }
         self.ch1.clock();
         self.ch2.clock();
-        self.ch3.clock();
+        if self.ch3_single_clocked {
+            self.ch3.single_clock();
+            self.ch3_single_clocked = false;
+        } else {
+            self.ch3.double_clock();
+        }
         self.ch4.clock();
 
         let sample = self.calculate_output_sample();
@@ -194,10 +202,10 @@ impl Apu {
     }
     /// Write Channel 1 Sweep
     pub fn cycle_nr10_write(&mut self, data: u8) {
+        self.cycle();
         if self.enabled {
             self.ch1.write_sweep(data)
         }
-        self.cycle();
     }
     /// Read Channel 1 Duty Cycle
     pub fn cycle_nr11_read(&mut self) -> u8 {
@@ -206,10 +214,10 @@ impl Apu {
     }
     /// Read Channel 1 Duty Cycle & Length Timer
     pub fn cycle_nr11_write(&mut self, data: u8) {
+        self.cycle();
         if self.enabled {
             self.ch1.write_wave_duty_and_length_timer(data);
         }
-        self.cycle();
     }
     /// Read Channel 1 Volume & Envelope
     pub fn cycle_nr12_read(&mut self) -> u8 {
@@ -218,10 +226,10 @@ impl Apu {
     }
     /// Write Channel 1 Volume & Envelope
     pub fn cycle_nr12_write(&mut self, data: u8) {
+        self.cycle();
         if self.enabled {
             self.ch1.write_volume_and_envelope(data);
         }
-        self.cycle();
     }
     /// Read Channel 1 NOTHING (its write-only)
     pub fn cycle_nr13_read(&mut self) -> u8 {
@@ -229,10 +237,10 @@ impl Apu {
     }
     /// Write Channel 1 Period Low
     pub fn cycle_nr13_write(&mut self, data: u8) {
+        self.cycle();
         if self.enabled {
             self.ch1.write_period_low(data);
         }
-        self.cycle();
     }
     /// Read Channel 1 Period High & Control
     pub fn cycle_nr14_read(&mut self) -> u8 {
@@ -241,10 +249,10 @@ impl Apu {
     }
     /// Write Channel 1 Period High & Control
     pub fn cycle_nr14_write(&mut self, data: u8) {
+        self.cycle();
         if self.enabled {
             self.ch1.write_period_high_and_control(data);
         }
-        self.cycle();
     }
     /// Read Channel 2 Duty Cycle
     pub fn cycle_nr21_read(&mut self) -> u8 {
@@ -253,10 +261,10 @@ impl Apu {
     }
     /// Read Channel 2 Duty Cycle & Length Timer
     pub fn cycle_nr21_write(&mut self, data: u8) {
+        self.cycle();
         if self.enabled {
             self.ch2.write_wave_duty_and_length_timer(data);
         }
-        self.cycle();
     }
     /// Read Channel 2 Volume & Envelope
     pub fn cycle_nr22_read(&mut self) -> u8 {
@@ -265,10 +273,10 @@ impl Apu {
     }
     /// Write Channel 2 Volume & Envelope
     pub fn cycle_nr22_write(&mut self, data: u8) {
+        self.cycle();
         if self.enabled {
             self.ch2.write_volume_and_envelope(data);
         }
-        self.cycle();
     }
     /// Read Channel 2 NOTHING (its write-only)
     pub fn cycle_nr23_read(&mut self) -> u8 {
@@ -276,10 +284,10 @@ impl Apu {
     }
     /// Write Channel 2 Period Low
     pub fn cycle_nr23_write(&mut self, data: u8) {
+        self.cycle();
         if self.enabled {
             self.ch2.write_period_low(data);
         }
-        self.cycle();
     }
     /// Read Channel 2 Period High & Control
     pub fn cycle_nr24_read(&mut self) -> u8 {
@@ -288,10 +296,10 @@ impl Apu {
     }
     /// Write Channel 2 Period High & Control
     pub fn cycle_nr24_write(&mut self, data: u8) {
+        self.cycle();
         if self.enabled {
             self.ch2.write_period_high_and_control(data);
         }
-        self.cycle();
     }
     /// Read Channel 3 DAC Enable
     pub fn cycle_nr30_read(&mut self) -> u8 {
@@ -300,17 +308,17 @@ impl Apu {
     }
     /// Write Channel 3 DAC Enable
     pub fn cycle_nr30_write(&mut self, data: u8) {
+        self.cycle();
         if self.enabled {
             self.ch3.write_dac_enable(data);
         }
-        self.cycle();
     }
     /// Write Channel 3 Length Timer
     pub fn cycle_nr31_write(&mut self, data: u8) {
+        self.cycle();
         if self.enabled {
             self.ch3.write_length_timer(data);
         }
-        self.cycle();
     }
     /// Read Channel 3 Output Level
     pub fn cycle_nr32_read(&mut self) -> u8 {
@@ -319,17 +327,17 @@ impl Apu {
     }
     /// Write Channel 3 Output Level
     pub fn cycle_nr32_write(&mut self, data: u8) {
+        self.cycle();
         if self.enabled {
             self.ch3.write_output_level(data);
         }
-        self.cycle();
     }
     /// Write Channel 3 Period Low
     pub fn cycle_nr33_write(&mut self, data: u8) {
+        self.cycle();
         if self.enabled {
             self.ch3.write_period_low(data);
         }
-        self.cycle();
     }
     /// Read Channel 3 Period High & Control
     pub fn cycle_nr34_read(&mut self) -> u8 {
@@ -338,27 +346,28 @@ impl Apu {
     }
     /// Write Channel 3 Period High & Control
     pub fn cycle_nr34_write(&mut self, data: u8) {
+        self.cycle();
         if self.enabled {
             self.ch3.write_period_high_and_control(data);
         }
-        self.cycle();
     }
     /// Read Channel 3 Wave Pattern RAM
     pub fn cycle_pattern_ram_read(&mut self, index: u8) -> u8 {
+        let res = self.ch3.read_wave_ram(index);
         self.cycle();
-        self.ch3.read_wave_ram(index)
+        res
     }
     /// Write Channel 3 Period High & Control
     pub fn cycle_pattern_ram_write(&mut self, index: u8, data: u8) {
-        self.cycle();
         self.ch3.write_wave_ram(index, data);
+        self.cycle();
     }
     /// Write Channel 4 Length Timer
     pub fn cycle_nr41_write(&mut self, data: u8) {
+        self.cycle();
         if self.enabled {
             self.ch4.write_length_timer(data);
         }
-        self.cycle();
     }
     /// Read Channel 4 Volume & Envelope
     pub fn cycle_nr42_read(&mut self) -> u8 {
@@ -367,10 +376,10 @@ impl Apu {
     }
     /// Write Channel 4 Volume & Envelope
     pub fn cycle_nr42_write(&mut self, data: u8) {
+        self.cycle();
         if self.enabled {
             self.ch4.write_volume_and_envelope(data);
         }
-        self.cycle();
     }
     /// Read Channel 4 Frequency & Randomness
     pub fn cycle_nr43_read(&mut self) -> u8 {
@@ -379,10 +388,10 @@ impl Apu {
     }
     /// Write Channel 4 Frequency & Randomness
     pub fn cycle_nr43_write(&mut self, data: u8) {
+        self.cycle();
         if self.enabled {
             self.ch4.write_frequency_and_randomness(data);
         }
-        self.cycle();
     }
     /// Read Channel 4 Control
     pub fn cycle_nr44_read(&mut self) -> u8 {
@@ -391,10 +400,10 @@ impl Apu {
     }
     /// Write Channel 4 Control
     pub fn cycle_nr44_write(&mut self, data: u8) {
+        self.cycle();
         if self.enabled {
             self.ch4.write_control(data);
         }
-        self.cycle();
     }
     /// Read APU Master Volume & VIN panning
     pub fn cycle_nr50_read(&mut self) -> u8 {
@@ -429,10 +438,10 @@ impl Apu {
     }
     /// Write APU Sound Panning
     pub fn cycle_nr51_write(&mut self, data: u8) {
+        self.cycle();
         if self.enabled {
             self.channels = data.into();
         }
-        self.cycle();
     }
     fn reset_nr51(&mut self) {
         self.channels = 0.into();
@@ -465,9 +474,11 @@ impl Apu {
         }
     }
     pub fn cycle_pcm12_read(&mut self) -> u8 {
+        self.cycle();
         self.ch2.get_output() << 4 | self.ch1.get_output()
     }
     pub fn cycle_pcm34_read(&mut self) -> u8 {
+        self.cycle();
         self.ch4.get_output() << 4 | self.ch3.get_output()
     }
 }
