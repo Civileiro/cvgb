@@ -213,21 +213,31 @@ impl Cpu {
         }
     }
     pub fn cycle_prefetch(&mut self, ctx: &mut impl CpuContext) {
-        let opcode_addr = self.regs.pc;
-        let (next_opcode, rqst_itrs) = ctx.cycle_read_itrs(opcode_addr);
-        // If there are interrupts pending after executing HALT, the halt bug happens
-        // making the program counter fail to increment
-        let halt_bug = matches!(self.opcode, Opcode::HALT) && rqst_itrs.has_interrupt();
-        if !halt_bug {
-            self.regs.inc_pc();
-        }
-        self.set_opcode(ctx, next_opcode, opcode_addr);
+        let (next_opcode, rqst_itrs) = ctx.cycle_read_itrs(self.regs.pc);
+        self.set_opcode(ctx, next_opcode, self.regs.pc);
         self.set_requested_interrupts(rqst_itrs);
+        self.regs.inc_pc();
     }
     // The halt function is here and not in instructions.rs bc it's logic is
     // entangled with cycle_prefetch and the halt bug
-    pub fn halt(&mut self, _ctx: &mut impl CpuContext) {
-        self.state.set_halt();
+    pub fn halt(&mut self, ctx: &mut impl CpuContext) {
+        // If there are interrupts pending after executing HALT, the halt bug happens
+        // making the program counter fail to increment
+        let opcode_addr = self.regs.pc;
+        let (next_opcode, rqst_itrs) = ctx.cycle_read_itrs(opcode_addr);
+        self.set_opcode(ctx, next_opcode, opcode_addr);
+        self.set_requested_interrupts(rqst_itrs);
+        if rqst_itrs.has_interrupt() {
+            if self.ime {
+                self.rqst_itrs = rqst_itrs;
+            } else {
+                let opcode = self.opcode;
+                self.execute(ctx, opcode);
+            }
+        } else {
+            ctx.cycle();
+            self.state.set_halt();
+        }
     }
     fn cycle(&self, ctx: &mut impl CpuContext) {
         ctx.cycle();
