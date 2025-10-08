@@ -172,6 +172,7 @@ impl Cpu {
             // 1: Decrement PC
             // Interrupt servicing happens after fetching the next opcode
             // As that wont be executed rn, we need to adjust the program counter
+            self.cycle(ctx);
             self.regs.dec_pc();
 
             // 2: Decrement SP
