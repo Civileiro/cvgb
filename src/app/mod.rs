@@ -19,8 +19,6 @@ use state::AppState;
 use timing::FrameTiming;
 use winit::{application::ApplicationHandler, event::WindowEvent};
 
-use crate::game_boy;
-
 #[derive(Debug)]
 pub struct CvgbApp {
     renderer_state: Option<RenderState>,

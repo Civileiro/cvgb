@@ -100,8 +100,7 @@ impl WaveChannel {
             self.start_delay = false;
             return;
         }
-        if let Some(sample) = self.read_queue[0] {
-            self.read_queue[0] = None;
+        if let Some(sample) = self.read_queue[0].take() {
             self.read_buffer = sample;
             self.output = self.active_volume.apply_volume(self.read_buffer);
         }

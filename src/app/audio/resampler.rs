@@ -2,8 +2,6 @@ use std::ops::Index;
 
 use rubato::VecResampler;
 
-use crate::game_boy;
-
 pub struct Resampler {
     inner_resampler: rubato::SincFixedIn<f32>,
     in_buffer: Vec<Vec<f32>>,

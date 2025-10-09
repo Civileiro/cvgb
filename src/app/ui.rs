@@ -89,10 +89,8 @@ pub mod options_ui {
 
     use enum_assoc::Assoc;
 
-    use crate::{
-        app::state::AppState,
-        game_boy::{self, Opcode},
-    };
+    use crate::app::state::AppState;
+    use game_boy::Opcode;
 
     #[derive(Debug, Default)]
     pub struct OptionsUiState {

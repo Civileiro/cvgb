@@ -5,8 +5,6 @@ use winit::{
     keyboard::{KeyCode, PhysicalKey},
 };
 
-use crate::game_boy;
-
 use super::{
     audio::AudioDriver, game_renderer::GameRenderingType, tasks::TaskManager,
     ui::options_ui::OptionsUiState, windows::WindowRegistry,

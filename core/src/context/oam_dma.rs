@@ -1,4 +1,4 @@
-use crate::game_boy::Cartridge;
+use crate::Cartridge;
 
 use super::{MemoryRegion, ppu::Ppu, wram::WorkRam};
 

@@ -774,6 +774,7 @@ dependencies = [
  "bytemuck",
  "compact_str",
  "cpal",
+ "cvgb-core",
  "egui",
  "egui-wgpu",
  "egui-winit",
@@ -784,7 +785,6 @@ dependencies = [
  "log",
  "modular-bitfield",
  "once_cell",
- "paste",
  "pollster",
  "puffin",
  "puffin_egui",
@@ -794,6 +794,24 @@ dependencies = [
  "thiserror 2.0.12",
  "wgpu",
  "winit",
+]
+
+[[package]]
+name = "cvgb-core"
+version = "0.1.0"
+dependencies = [
+ "arrayvec",
+ "bytemuck",
+ "compact_str",
+ "enum-assoc",
+ "enum_dispatch",
+ "log",
+ "modular-bitfield",
+ "once_cell",
+ "paste",
+ "puffin",
+ "ringbuf",
+ "thiserror 2.0.12",
 ]
 
 [[package]]

@@ -1,6 +1,6 @@
 use compact_str::format_compact;
-use egui::ahash::{HashMap, HashMapExt};
 use once_cell::sync::Lazy;
+use std::collections::HashMap;
 
 use super::{
     opcode::{CBOpcode, Condition, Opcode, R8, R16mem},

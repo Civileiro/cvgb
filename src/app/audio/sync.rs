@@ -6,8 +6,6 @@ use std::{
 use egui::mutex::Mutex;
 use ringbuf::traits::{Consumer, Observer, RingBuffer};
 
-use super::game_boy;
-
 const SAMPLES_PER_VBLANK: u32 = game_boy::CLOCKS_PER_FRAME as u32 / 4;
 
 type StatsBuffer = Arc<Mutex<ringbuf::StaticRb<StreamStats, 10>>>;

@@ -6,8 +6,6 @@ use winit::{
     window::{WindowAttributes, WindowId},
 };
 
-use crate::game_boy;
-
 use super::ui::UiLayout;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Assoc)]

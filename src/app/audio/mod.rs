@@ -9,7 +9,6 @@ use std::{
 
 use cpal::traits::{DeviceTrait, HostTrait};
 
-use crate::game_boy;
 use stream::AudioStream;
 use sync::EmulationAudioSync;
 

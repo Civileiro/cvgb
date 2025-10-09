@@ -5,7 +5,7 @@ mod instructions;
 mod macros;
 mod prefix;
 
-use crate::game_boy::{
+use crate::{
     Events,
     context::interrupts::{Interrupt, InterruptFlags},
     events::Event,

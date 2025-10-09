@@ -1,7 +1,4 @@
-use crate::{
-    app::{renderer::WgpuRenderState, state::AppState},
-    game_boy,
-};
+use crate::app::{renderer::WgpuRenderState, state::AppState};
 
 #[derive(Debug)]
 pub struct GameRendererImpl {

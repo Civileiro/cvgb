@@ -235,7 +235,6 @@ impl Cpu {
                 self.execute(ctx, opcode);
             }
         } else {
-            ctx.cycle();
             self.state.set_halt();
         }
     }

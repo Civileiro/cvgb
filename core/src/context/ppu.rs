@@ -4,7 +4,7 @@ use arrayvec::ArrayVec;
 use enum_assoc::Assoc;
 use modular_bitfield::prelude::*;
 
-use crate::game_boy::{WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::{WINDOW_HEIGHT, WINDOW_WIDTH};
 
 use super::IntoData;
 

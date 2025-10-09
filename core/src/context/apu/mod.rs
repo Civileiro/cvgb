@@ -4,7 +4,8 @@ pub use output::{AudioBuffer, AudioOutput};
 use square_channel::SquareChannel;
 use wave_channel::WaveChannel;
 
-use crate::game_boy::{self, context::IntoData};
+use crate::context::IntoData;
+
 mod envelope;
 mod noise_channel;
 mod output;
@@ -150,7 +151,7 @@ impl Apu {
             // TODO: configurable cutoff
             let cutoff = 50.0;
             let rc = 1.0 / (2.0 * std::f32::consts::PI * cutoff);
-            let t = 1.0 / game_boy::APU_SAMPLE_RATE as f32;
+            let t = 1.0 / crate::APU_SAMPLE_RATE as f32;
             rc / (rc + t)
         };
         let mut out = [0.0, 0.0];

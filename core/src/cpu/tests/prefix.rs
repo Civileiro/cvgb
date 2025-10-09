@@ -1,4 +1,4 @@
-use crate::game_boy::cpu::{
+use crate::cpu::{
     registers::Flags,
     tests::{END_INSTRUCTION, run_test},
 };

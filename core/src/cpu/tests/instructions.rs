@@ -1,4 +1,4 @@
-use crate::game_boy::{
+use crate::{
     Opcode,
     cpu::{
         CPUState,

@@ -42,8 +42,8 @@ impl WorkRam {
             "Invalid address for WRAM: {addr:04x}"
         );
         let rel_addr = addr & WRAM_ADDR_USABLE_BITS;
-        if (addr >> 13) == 1 {
-            ((self.bank as u16).min(1) << 13) | rel_addr
+        if (rel_addr >> 12) & 1 != 0 {
+            ((self.bank as u16).max(1) << 12) | rel_addr
         } else {
             rel_addr
         }

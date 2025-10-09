@@ -116,13 +116,13 @@ impl Controller for MBC1 {
                 }
             }
             0x4000..0x8000 => {
-                let addr = ((addr - 0x4000) as u32)
+                let addr = ((addr & 0x3FFF) as u32)
                     | ((self.rom_bank_number as u32) << 14)
                     | ((self.ram_bank_number as u32) << 19);
                 memory.read_rom(addr)
             }
             0xA000..0xC000 => {
-                let addr = addr - 0xA000;
+                let addr = addr & 0x9FFF;
                 if !self.ram_enable {
                     0xFF
                 } else if self.banking_mode {

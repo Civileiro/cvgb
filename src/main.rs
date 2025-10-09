@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
 mod app;
-mod game_boy;
 
 use app::CvgbApp;
 use winit::{error::EventLoopError, event_loop::EventLoop};
