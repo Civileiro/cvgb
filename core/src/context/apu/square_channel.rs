@@ -1,4 +1,4 @@
-use super::{envelope::Envelope, sample::SampleQueue, sweep::Sweep, wave_duty::WaveDuty};
+use super::{envelope::Envelope, sample::SampleQueue, sweep::Sweep};
 
 const CH1_LENGTH_TIMER_MAX: usize = 64;
 
@@ -17,6 +17,28 @@ pub struct SquareChannel {
     init_envelope: Envelope,
     active_envelope: Envelope,
     sample_queue: SampleQueue<bool>,
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub enum WaveDuty {
+    #[default]
+    HalfQuarter = 0b00,
+    OneQuarter = 0b01,
+    TwoQuarters = 0b10,
+    ThreeQuarters = 0b11,
+}
+
+impl WaveDuty {
+    pub const fn from(data: u8) -> Option<Self> {
+        let slf = match data {
+            0 => Self::HalfQuarter,
+            1 => Self::OneQuarter,
+            2 => Self::TwoQuarters,
+            3 => Self::ThreeQuarters,
+            _ => return None,
+        };
+        Some(slf)
+    }
 }
 
 impl SquareChannel {

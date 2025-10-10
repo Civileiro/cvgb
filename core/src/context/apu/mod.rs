@@ -13,7 +13,6 @@ mod sample;
 mod square_channel;
 mod sweep;
 mod wave_channel;
-mod wave_duty;
 
 #[derive(Debug, Default)]
 pub struct Apu {
