@@ -1,4 +1,4 @@
-use super::{envelope::Envelope, sweep::Sweep, wave_duty::WaveDuty};
+use super::{envelope::Envelope, sample::SampleQueue, sweep::Sweep, wave_duty::WaveDuty};
 
 const CH1_LENGTH_TIMER_MAX: usize = 64;
 
@@ -8,7 +8,6 @@ pub struct SquareChannel {
     sweep: Sweep,
     wave_duty: WaveDuty,
     sequence: u8,
-    output: u8,
     initial_length_timer: usize,
     length_timer: usize,
     length_timer_enable: bool,
@@ -16,6 +15,7 @@ pub struct SquareChannel {
     period_divider: u16,
     init_envelope: Envelope,
     active_envelope: Envelope,
+    sample_queue: SampleQueue<bool>,
 }
 
 impl SquareChannel {
@@ -29,14 +29,15 @@ impl SquareChannel {
     }
 
     pub fn clock(&mut self) {
+        if !self.is_active() {
+            return;
+        }
+        self.sample_queue.tick();
         self.period_divider += 1;
         if self.period_divider > 0x7FF {
             self.period_divider = self.sweep.period;
-            self.output = if self.sample() && self.is_active() {
-                self.active_envelope.volume()
-            } else {
-                0
-            };
+            let sample = self.sample();
+            self.sample_queue.update_sample(sample);
         }
     }
     pub fn get_output(&self) -> u8 {

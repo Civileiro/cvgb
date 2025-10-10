@@ -1,5 +1,6 @@
+use super::sample::SampleQueue;
+
 const CH3_LENGTH_TIMER_MAX: usize = 256;
-const READ_QUEUE_SIZE: usize = 2;
 
 #[derive(Debug, Default)]
 pub struct WaveChannel {
@@ -14,10 +15,8 @@ pub struct WaveChannel {
     period: u16,
     period_divider: u16,
     wave_ram: WaveRam,
-    read_buffer: u8,
     start_delay: bool,
-    read_queue: [Option<u8>; READ_QUEUE_SIZE],
-    output: u8,
+    sample_queue: SampleQueue<u8>,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -76,9 +75,6 @@ impl WaveRam {
         self.index += 1;
         self.index &= 0x1F;
     }
-    fn is_at_start(&self) -> bool {
-        self.index == 0
-    }
     pub fn reset_index(&mut self) {
         self.index = 0;
     }
@@ -91,34 +87,23 @@ impl WaveRam {
 }
 
 impl WaveChannel {
-    pub fn single_clock(&mut self) {
-        if !self.active {
-            self.output = 0;
-            return;
-        }
+    pub fn clock(&mut self) {
         if self.start_delay {
             self.start_delay = false;
             return;
         }
-        if let Some(sample) = self.read_queue[0].take() {
-            self.read_buffer = sample;
-            self.output = self.active_volume.apply_volume(self.read_buffer);
-        }
-        self.read_queue.rotate_left(1);
+        self.sample_queue.tick();
         self.period_divider += 1;
         if self.period_divider > 0x7FF {
             self.period_divider = self.period;
             self.wave_ram.inc_index();
             let sample = self.wave_ram.read_index();
-            self.read_queue[READ_QUEUE_SIZE - 1] = Some(sample);
+            self.sample_queue.update_sample(sample);
         }
     }
-    pub fn double_clock(&mut self) {
-        self.single_clock();
-        self.single_clock();
-    }
     pub fn get_output(&self) -> u8 {
-        self.output
+        self.active_volume
+            .apply_volume(self.sample_queue.get_sample())
     }
     pub fn reset(&mut self) {
         let mut ram = self.wave_ram.clone();
@@ -145,7 +130,6 @@ impl WaveChannel {
         self.period_divider = self.period;
         self.active_volume = self.initial_volume;
         self.wave_ram.reset_index();
-        self.output = self.active_volume.apply_volume(self.read_buffer);
     }
     pub fn length_timer_tick(&mut self) {
         if self.length_timer_enable && self.length_timer != CH3_LENGTH_TIMER_MAX {
