@@ -634,8 +634,8 @@ impl<'a> TimerContext for TimerContextImpl<'a> {
         self.double_speed
     }
 
-    fn signal_div_apu_event(&mut self) {
-        self.apu.div_apu_tick();
+    fn signal_div_apu_bit(&mut self, bit: bool) {
+        self.apu.set_div_bit(bit);
     }
 }
 

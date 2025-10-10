@@ -18,6 +18,7 @@ mod wave_channel;
 pub struct Apu {
     enabled: bool,
     frame_sequencer: FrameSequencer,
+    div_bit: bool,
     time: usize,
     channels: Channels,
     vin_left: bool,
@@ -49,24 +50,34 @@ pub struct Channels {
 }
 
 #[derive(Debug, Default)]
-struct FrameSequencer(u8);
+struct FrameSequencer {
+    frame: Option<u8>,
+    ignore_first: bool,
+}
 
 impl FrameSequencer {
     pub fn tick(&mut self) {
-        self.0 += 1;
-        self.0 &= 0b111;
+        if let Some(frame) = self.frame.as_mut() {
+            *frame += 1;
+            *frame &= 0b111;
+        } else if self.ignore_first {
+            self.ignore_first = false
+        } else {
+            self.frame = Some(0)
+        }
     }
     pub fn length_tick(&self) -> bool {
-        self.0.is_multiple_of(2)
+        self.frame.is_some_and(|v| v.is_multiple_of(2))
     }
     pub fn sweep_tick(&self) -> bool {
-        self.0 == 2 || self.0 == 6
+        self.frame.is_some_and(|v| v == 2 || v == 6)
     }
     pub fn envelope_tick(&self) -> bool {
-        self.0 == 7
+        self.frame.is_some_and(|v| v == 7)
     }
-    pub fn power_on(&mut self) {
-        self.0 = 7
+    pub fn power_on(&mut self, ignore_first: bool) {
+        self.frame = None;
+        self.ignore_first = ignore_first;
     }
 }
 
@@ -159,7 +170,7 @@ impl Apu {
     pub fn get_audio_output(&mut self) -> AudioOutput {
         self.output_buffer.get_output()
     }
-    pub fn div_apu_tick(&mut self) {
+    fn div_apu_tick(&mut self) {
         self.frame_sequencer.tick();
         if self.frame_sequencer.length_tick() {
             self.ch1.length_timer_tick();
@@ -184,6 +195,13 @@ impl Apu {
             self.ch1.envelope_tick();
             self.ch2.envelope_tick();
             self.ch4.envelope_tick();
+        }
+    }
+    pub fn set_div_bit(&mut self, bit: bool) {
+        let old_bit = self.div_bit;
+        self.div_bit = bit;
+        if old_bit && !self.div_bit {
+            self.div_apu_tick();
         }
     }
     /// Read Channel 1 Sweep
@@ -460,7 +478,8 @@ impl Apu {
             self.reset_nr50();
             self.reset_nr51();
         } else if !old_enabled && self.enabled {
-            self.frame_sequencer.power_on();
+            let ignore_first = self.div_bit;
+            self.frame_sequencer.power_on(ignore_first);
             self.time = 0;
         }
     }

@@ -68,16 +68,13 @@ impl Timer {
         f: impl FnOnce(&mut Self, &mut C) -> T,
     ) -> T {
         let prev_bit = self.selected_bit();
-        let prev_apu_bit = self.div_apu_bit(ctx);
         let res = f(self, ctx);
         let new_bit = self.selected_bit();
-        let new_apu_bit = self.div_apu_bit(ctx);
         if self.tac.enable() && prev_bit && !new_bit {
             self.tick();
         }
-        if prev_apu_bit && !new_apu_bit {
-            ctx.signal_div_apu_event();
-        }
+        let div_apu_bit = self.div_apu_bit(ctx);
+        ctx.signal_div_apu_bit(div_apu_bit);
         res
     }
 
@@ -139,5 +136,5 @@ impl Timer {
 pub trait TimerContext {
     fn signal_timer_interrupt(&mut self);
     fn is_double_speed(&self) -> bool;
-    fn signal_div_apu_event(&mut self);
+    fn signal_div_apu_bit(&mut self, bit: bool);
 }
