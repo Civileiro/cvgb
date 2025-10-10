@@ -533,7 +533,7 @@ impl CpuContext for Context {
                 self.ppu_cycle(|slf| slf.cycle_ppu_write(|ppu| ppu.obp1 = data))
             }
             0xFF4C if self.boot_rom.is_enabled() => {
-                self.generic_cycle(|slf| slf.dmg_compatibility = (data & 0b100) != 0)
+                self.generic_cycle(|slf| slf.set_dmg_compatibility((data & 0b100) != 0))
             }
             0xFF4D if self.access_cgb_reg() => self.generic_cycle(|slf| slf.key1.write(data)),
             0xFF4F if self.access_cgb_reg() => {
