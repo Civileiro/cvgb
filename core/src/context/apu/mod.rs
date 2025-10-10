@@ -467,15 +467,11 @@ impl Apu {
         }
     }
     pub fn cycle_pcm12_read(&mut self) -> u8 {
-        println!("READING PCM12 {}", self.time);
         self.cycle();
-        println!("OUTPUTTING PCM12 {}", self.time);
-        dbg!(self.ch2.get_output() << 4 | self.ch1.get_output())
+        self.ch2.get_output() << 4 | self.ch1.get_output()
     }
     pub fn cycle_pcm34_read(&mut self) -> u8 {
-        println!("READING PCM34 {}", self.time);
         self.cycle();
-        println!("OUTPUTTING PCM34 {}", self.time);
         self.ch4.get_output() << 4 | self.ch3.get_output()
     }
 }
