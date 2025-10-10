@@ -25,4 +25,7 @@ impl<T: Copy> SampleQueue<T> {
     pub fn get_sample(&self) -> T {
         self.read_buffer
     }
+    pub fn flush(&mut self) {
+        self.read_queue = Default::default()
+    }
 }

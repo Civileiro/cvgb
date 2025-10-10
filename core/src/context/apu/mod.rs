@@ -344,14 +344,13 @@ impl Apu {
     }
     /// Read Channel 3 Wave Pattern RAM
     pub fn cycle_pattern_ram_read(&mut self, index: u8) -> u8 {
-        let res = self.ch3.read_wave_ram(index);
         self.cycle();
-        res
+        self.ch3.read_wave_ram(index)
     }
     /// Write Channel 3 Period High & Control
     pub fn cycle_pattern_ram_write(&mut self, index: u8, data: u8) {
-        self.ch3.write_wave_ram(index, data);
         self.cycle();
+        self.ch3.write_wave_ram(index, data);
     }
     /// Write Channel 4 Length Timer
     pub fn cycle_nr41_write(&mut self, data: u8) {

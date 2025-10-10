@@ -91,17 +91,23 @@ impl WaveChannel {
             self.start_delay = false;
             return;
         }
-        self.sample_queue.tick();
+        if self.sample_queue.tick().is_some() {
+            self.wave_ram.inc_index();
+            let sample = self.wave_ram.read_index();
+            self.sample_queue.force_set_sample(sample);
+        }
         self.period_divider += 1;
         if self.period_divider > 0x7FF {
             self.period_divider = self.period;
-            self.wave_ram.inc_index();
-            let sample = self.wave_ram.read_index();
-            self.sample_queue.add_sample(sample);
+            self.sample_queue.add_sample(0);
         }
     }
     pub fn get_output(&self) -> u8 {
-        self.volume.apply_volume(self.sample_queue.get_sample())
+        if self.dac_active() {
+            self.volume.apply_volume(self.sample_queue.get_sample())
+        } else {
+            0
+        }
     }
     pub fn reset(&mut self) {
         let mut ram = self.wave_ram.clone();
@@ -127,6 +133,7 @@ impl WaveChannel {
         self.start_delay = true;
         self.period_divider = self.period;
         self.wave_ram.reset_index();
+        self.sample_queue.flush();
     }
     pub fn length_timer_tick(&mut self) {
         if self.length_timer_enable && self.length_timer != CH3_LENGTH_TIMER_MAX {
