@@ -68,6 +68,7 @@ impl SquareChannel {
     }
     pub fn off_clock(&mut self) {
         if self.to_enable {
+            self.to_enable = false;
             self.active = true
         }
     }
