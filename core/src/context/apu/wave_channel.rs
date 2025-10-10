@@ -10,8 +10,7 @@ pub struct WaveChannel {
     length_timer: usize,
     length_timer_enable: bool,
     next_tick_triggers_length: bool,
-    initial_volume: OutputVolume,
-    active_volume: OutputVolume,
+    volume: OutputVolume,
     period: u16,
     period_divider: u16,
     wave_ram: WaveRam,
@@ -102,8 +101,7 @@ impl WaveChannel {
         }
     }
     pub fn get_output(&self) -> u8 {
-        self.active_volume
-            .apply_volume(self.sample_queue.get_sample())
+        self.volume.apply_volume(self.sample_queue.get_sample())
     }
     pub fn reset(&mut self) {
         let mut ram = self.wave_ram.clone();
@@ -128,7 +126,6 @@ impl WaveChannel {
         self.active = self.dac_active();
         self.start_delay = true;
         self.period_divider = self.period;
-        self.active_volume = self.initial_volume;
         self.wave_ram.reset_index();
     }
     pub fn length_timer_tick(&mut self) {
@@ -165,10 +162,10 @@ impl WaveChannel {
         self.length_timer = self.initial_length_timer;
     }
     pub fn read_output_level(&self) -> u8 {
-        (self.initial_volume as u8) << 5 | 0b1001_1111
+        (self.volume as u8) << 5 | 0b1001_1111
     }
     pub fn write_output_level(&mut self, data: u8) {
-        self.initial_volume = OutputVolume::from((data >> 5) & 0b11).unwrap();
+        self.volume = OutputVolume::from((data >> 5) & 0b11).unwrap();
     }
     pub fn write_period_low(&mut self, data: u8) {
         self.period &= 0xFF00;
