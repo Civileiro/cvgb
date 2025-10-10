@@ -1,4 +1,4 @@
-use super::sample::SampleQueue;
+use super::delay::SampleDelay;
 
 const CH3_LENGTH_TIMER_MAX: usize = 256;
 
@@ -15,7 +15,8 @@ pub struct WaveChannel {
     period_divider: u16,
     wave_ram: WaveRam,
     start_delay: bool,
-    sample_queue: SampleQueue<u8>,
+    sample_queue: SampleDelay,
+    output: u8,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -91,20 +92,20 @@ impl WaveChannel {
             self.start_delay = false;
             return;
         }
-        if self.sample_queue.tick().is_some() {
+        if self.sample_queue.read_now() {
             self.wave_ram.inc_index();
             let sample = self.wave_ram.read_index();
-            self.sample_queue.force_set_sample(sample);
+            self.output = sample
         }
         self.period_divider += 1;
         if self.period_divider > 0x7FF {
             self.period_divider = self.period;
-            self.sample_queue.add_sample(0);
+            self.sample_queue.add_read();
         }
     }
     pub fn get_output(&self) -> u8 {
         if self.dac_active() {
-            self.volume.apply_volume(self.sample_queue.get_sample())
+            self.volume.apply_volume(self.output)
         } else {
             0
         }

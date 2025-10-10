@@ -6,10 +6,10 @@ use wave_channel::WaveChannel;
 
 use crate::context::IntoData;
 
+mod delay;
 mod envelope;
 mod noise_channel;
 mod output;
-mod sample;
 mod square_channel;
 mod sweep;
 mod wave_channel;
