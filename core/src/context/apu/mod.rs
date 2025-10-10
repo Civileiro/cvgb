@@ -9,6 +9,7 @@ use crate::context::IntoData;
 mod envelope;
 mod noise_channel;
 mod output;
+mod sample;
 mod square_channel;
 mod sweep;
 mod wave_channel;
@@ -18,8 +19,7 @@ mod wave_duty;
 pub struct Apu {
     enabled: bool,
     frame_sequencer: FrameSequencer,
-    double_speed_cycle: bool,
-    ch3_single_clocked: bool,
+    time: usize,
     channels: Channels,
     vin_left: bool,
     vin_right: bool,
@@ -73,24 +73,20 @@ impl FrameSequencer {
 
 impl Apu {
     pub fn cycle(&mut self) {
-        if self.double_speed_cycle {
-            self.double_speed_cycle = false;
-            self.ch3_single_clocked = true;
-            self.ch3.single_clock();
-            return;
+        self.time += 2;
+        if self.time.is_multiple_of(2) {
+            self.ch3.clock();
         }
-        self.ch1.clock();
-        self.ch2.clock();
-        if self.ch3_single_clocked {
-            self.ch3.single_clock();
-            self.ch3_single_clocked = false;
+        if self.time.is_multiple_of(4) {
+            self.ch1.clock();
+            self.ch2.clock();
+            self.ch4.clock();
+            let sample = self.calculate_output_sample();
+            self.output_buffer.add_sample(sample);
         } else {
-            self.ch3.double_clock();
+            self.ch1.off_clock();
+            self.ch2.off_clock();
         }
-        self.ch4.clock();
-
-        let sample = self.calculate_output_sample();
-        self.output_buffer.add_sample(sample);
     }
     pub fn calculate_output_sample(&mut self) -> [f32; 2] {
         let digital_to_analog = |dig: u8| 1.0 - (dig as f32) / 7.5;
@@ -163,9 +159,6 @@ impl Apu {
     }
     pub fn get_audio_output(&mut self) -> AudioOutput {
         self.output_buffer.get_output()
-    }
-    pub fn signal_double_speed_cycle(&mut self) {
-        self.double_speed_cycle = true
     }
     pub fn div_apu_tick(&mut self) {
         self.frame_sequencer.tick();
@@ -470,14 +463,19 @@ impl Apu {
             self.reset_nr51();
         } else if !old_enabled && self.enabled {
             self.frame_sequencer.power_on();
+            self.time = 0;
         }
     }
     pub fn cycle_pcm12_read(&mut self) -> u8 {
+        println!("READING PCM12 {}", self.time);
         self.cycle();
-        self.ch2.get_output() << 4 | self.ch1.get_output()
+        println!("OUTPUTTING PCM12 {}", self.time);
+        dbg!(self.ch2.get_output() << 4 | self.ch1.get_output())
     }
     pub fn cycle_pcm34_read(&mut self) -> u8 {
+        println!("READING PCM34 {}", self.time);
         self.cycle();
+        println!("OUTPUTTING PCM34 {}", self.time);
         self.ch4.get_output() << 4 | self.ch3.get_output()
     }
 }

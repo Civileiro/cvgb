@@ -15,12 +15,6 @@ pub struct Sweep {
 pub struct SweepDirection(bool);
 
 impl SweepDirection {
-    pub const fn new(b: bool) -> Self {
-        Self(b)
-    }
-    pub const fn bit(&self) -> u8 {
-        self.0 as u8
-    }
     pub const fn is_decreasing(&self) -> bool {
         self.0
     }

@@ -5,6 +5,7 @@ const CH1_LENGTH_TIMER_MAX: usize = 64;
 #[derive(Debug, Default)]
 pub struct SquareChannel {
     active: bool,
+    to_enable: bool,
     sweep: Sweep,
     wave_duty: WaveDuty,
     sequence: u8,
@@ -19,7 +20,7 @@ pub struct SquareChannel {
 }
 
 impl SquareChannel {
-    const DUTY_TABLE: [u8; 4] = [0b1111_1110, 0b0111_1110, 0b0111_1000, 0b1000_0001];
+    const DUTY_TABLE: [u8; 4] = [0b0100_0000, 0b1100_0000, 0b1111_0000, 0b0011_1111];
 
     fn sample(&mut self) -> bool {
         let res = (Self::DUTY_TABLE[self.wave_duty as usize] >> self.sequence) & 1 != 0;
@@ -40,8 +41,17 @@ impl SquareChannel {
             self.sample_queue.update_sample(sample);
         }
     }
+    pub fn off_clock(&mut self) {
+        if self.to_enable {
+            self.active = true
+        }
+    }
     pub fn get_output(&self) -> u8 {
-        self.output
+        if !self.is_active() || !self.sample_queue.get_sample() {
+            0
+        } else {
+            self.active_envelope.volume()
+        }
     }
     pub fn reset(&mut self) {
         *self = Self::default()
@@ -57,15 +67,11 @@ impl SquareChannel {
                 0
             };
         }
-        self.active = self.dac_active();
-        self.period_divider = self.sweep.period;
-        self.active_envelope = self.init_envelope;
-
         let mut disable_channel = false;
         self.sweep.trigger(&mut disable_channel);
-        if disable_channel {
-            self.active = false
-        }
+        self.to_enable = self.dac_active() && !disable_channel;
+        self.period_divider = self.sweep.period;
+        self.active_envelope = self.init_envelope;
     }
     pub fn is_active(&self) -> bool {
         self.active

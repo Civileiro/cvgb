@@ -25,9 +25,6 @@ struct Lfsr {
 }
 
 impl Lfsr {
-    pub fn reset_bits(&mut self) {
-        self.buffer = 0;
-    }
     fn clock_trigger_treshold(&self) -> u16 {
         let base = 16.0;
         let div = if self.clock_divider == 0 {

@@ -248,13 +248,16 @@ impl Context {
         } else {
             self.cycle_timer();
         }
-        if self.is_double_speed_cycle() {
-            self.apu.signal_double_speed_cycle();
-        }
-        if stage == CycleStage::AccessApu {
-            res = f(self).into_data()
-        } else {
-            self.apu.cycle();
+        {
+            // APU
+            if !self.is_double_speed() {
+                self.apu.cycle();
+            }
+            if stage == CycleStage::AccessApu {
+                res = f(self).into_data()
+            } else {
+                self.apu.cycle();
+            }
         }
         if stage == CycleStage::AccessWRam {
             if matches!(
