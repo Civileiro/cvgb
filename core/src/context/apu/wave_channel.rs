@@ -98,7 +98,7 @@ impl WaveChannel {
             self.period_divider = self.period;
             self.wave_ram.inc_index();
             let sample = self.wave_ram.read_index();
-            self.sample_queue.update_sample(sample);
+            self.sample_queue.add_sample(sample);
         }
     }
     pub fn get_output(&self) -> u8 {

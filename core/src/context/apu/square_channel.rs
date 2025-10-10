@@ -55,12 +55,14 @@ impl SquareChannel {
         if !self.is_active() {
             return;
         }
-        self.sample_queue.tick();
+        if self.sample_queue.tick().is_some() {
+            let sample = self.sample();
+            self.sample_queue.force_set_sample(sample);
+        }
         self.period_divider += 1;
         if self.period_divider > 0x7FF {
             self.period_divider = self.sweep.period;
-            let sample = self.sample();
-            self.sample_queue.update_sample(sample);
+            self.sample_queue.add_sample(true);
         }
     }
     pub fn off_clock(&mut self) {
