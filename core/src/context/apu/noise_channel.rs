@@ -95,7 +95,7 @@ impl NoiseChannel {
             };
         }
         self.active = self.dac_active();
-        self.active_envelope = self.init_envelope;
+        self.active_envelope = self.init_envelope.init();
     }
     pub fn length_timer_tick(&mut self) {
         if self.length_timer_enable && self.length_timer != CH4_LENGTH_TIMER_MAX {
@@ -132,6 +132,11 @@ impl NoiseChannel {
     pub fn write_volume_and_envelope(&mut self, data: u8) {
         self.init_envelope.write(data);
         self.active &= self.dac_active();
+        if !self.active {
+            self.output = 0
+        } else {
+            self.active_envelope.zombie(&self.init_envelope);
+        }
     }
     pub fn read_frequency_and_randomness(&self) -> u8 {
         let mut res = 0;

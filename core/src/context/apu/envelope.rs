@@ -5,9 +5,10 @@ pub struct Envelope {
     pace: u8,
 
     timer: u8,
+    active: bool,
 }
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct EnvelopeDirection(bool);
 
 impl EnvelopeDirection {
@@ -40,20 +41,73 @@ impl Envelope {
     pub fn volume(&self) -> u8 {
         self.volume
     }
+    pub fn init(&self) -> Self {
+        let mut activated = *self;
+        activated.active = activated.pace != 0 || activated.direction.is_increasing();
+        activated.timer = activated.pace;
+        activated
+    }
     pub fn tick(&mut self) {
-        if self.pace == 0 {
+        if self.pace == 0 || !self.active {
             return;
         }
-        self.timer = (self.timer + 1) % self.pace;
+        self.timer -= 1;
+        self.timer &= 0x07;
         if self.timer == 0 {
-            if self.direction.is_increasing() && self.volume < 0x0F {
-                self.volume += 1;
-            } else if self.direction.is_decreasing() && self.volume > 0 {
-                self.volume -= 1;
+            self.timer = if self.pace == 0 { 8 } else { self.pace };
+            if self.direction.is_increasing() {
+                if self.volume < 0x0F {
+                    self.volume += 1
+                } else {
+                    self.active = false
+                }
+            } else if self.volume > 0 {
+                self.volume -= 1
+            } else {
+                self.active = false
             }
         }
     }
     pub fn dac_active(&self) -> bool {
         self.volume != 0 || self.direction.bit() != 0
+    }
+    pub fn zombie(&mut self, init: &Self) {
+        let mut should_tick = init.pace != 0 && self.pace == 0 && self.active;
+        let should_invert = init.direction != self.direction;
+        if init.pace == 0
+            && init.direction.is_increasing()
+            && self.pace == 0
+            && self.direction.is_increasing()
+            && self.active
+        {
+            should_tick = true;
+        }
+        if should_invert {
+            if init.direction.is_increasing() {
+                if self.pace == 0 {
+                    self.volume ^= 0xF;
+                } else {
+                    self.volume = 0xE - self.volume;
+                    self.volume &= 0xF;
+                }
+                should_tick = false;
+            } else {
+                self.volume = 0x10 - self.volume;
+                self.volume &= 0xF;
+            }
+        }
+        if should_tick {
+            if init.direction.is_increasing() {
+                self.volume += 1;
+            } else {
+                self.volume -= 1;
+            }
+            self.volume &= 0xF;
+        } else if init.pace == 0 {
+            self.active = false
+        }
+        self.pace = init.pace;
+        self.timer = init.pace;
+        self.direction = init.direction;
     }
 }

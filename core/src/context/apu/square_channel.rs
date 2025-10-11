@@ -97,7 +97,7 @@ impl SquareChannel {
         self.sweep.trigger(&mut disable_channel);
         self.to_enable = self.dac_active() && !disable_channel;
         self.period_divider = self.sweep.period;
-        self.active_envelope = self.init_envelope;
+        self.active_envelope = self.init_envelope.init();
     }
     pub fn is_active(&self) -> bool {
         self.active
@@ -158,6 +158,11 @@ impl SquareChannel {
     pub fn write_volume_and_envelope(&mut self, data: u8) {
         self.init_envelope.write(data);
         self.active &= self.dac_active();
+        if !self.active {
+            self.output = false
+        } else {
+            self.active_envelope.zombie(&self.init_envelope);
+        }
     }
     pub fn write_period_low(&mut self, data: u8) {
         self.sweep.period &= 0xFF00;
