@@ -23,3 +23,5 @@ pub const CLOCKS_PER_FRAME: usize = 70_224;
 pub const REFRESH_RATE: f32 = BASE_CPU_FREQUENCY as f32 / CLOCKS_PER_FRAME as f32;
 pub const BASE_CPU_FREQUENCY: usize = 4_194_304;
 pub const APU_SAMPLE_RATE: usize = BASE_CPU_FREQUENCY / 4;
+pub const ROM_BANK_SIZE: usize = 0x4000;
+pub const RAM_BANK_SIZE: usize = 0x2000;

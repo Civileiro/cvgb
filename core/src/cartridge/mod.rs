@@ -123,17 +123,25 @@ impl CartridgeMemory {
     pub fn read_rom(&self, addr: u32) -> u8 {
         self.rom[(addr & self.rom_mask()) as usize]
     }
+    fn ram_mask(&self) -> u16 {
+        debug_assert_eq!(self.ram.len().count_ones(), 1);
+        debug_assert!(self.ram.len() <= (u16::MAX as usize));
+        self.ram.len() as u16 - 1
+    }
     pub fn read_ram(&self, addr: u16) -> u8 {
         if self.ram.is_empty() {
             return 0xFF;
         }
-        self.ram[addr as usize % self.ram.len()]
+
+        // println!("reading {:02X} from {:04X} ram", res, addr);
+        self.ram[(addr & self.ram_mask()) as usize]
     }
     pub fn write_ram(&mut self, addr: u16, data: u8) {
         if self.ram.is_empty() {
             return;
         }
-        self.ram[addr as usize % self.ram.len()] = data
+        // println!("writing {:02X} to {:04X} ram", data, addr);
+        self.ram[(addr & self.ram_mask()) as usize] = data
     }
 }
 
@@ -148,9 +156,7 @@ impl Cartridge {
         let header = CartridgeHeader::from_rom(&rom).ok_or(CartridgeParseError::HeaderError)?;
         let mbc = MemoryBankController::from_cartridge_type(header.cartridge_type);
         let ram = {
-            // 16 KiB / bank
-            let ram_size = header.ram_bank_count() * (16 << 10);
-
+            let ram_size = header.ram_bank_count() * crate::RAM_BANK_SIZE;
             vec![0; ram_size].into_boxed_slice()
         };
         Ok(Self {
@@ -158,6 +164,9 @@ impl Cartridge {
             memory: CartridgeMemory { rom, ram },
             mbc,
         })
+    }
+    pub fn clock(&mut self) {
+        self.mbc.clock();
     }
     pub fn read(&self, addr: u16) -> u8 {
         self.mbc.read(&self.memory, addr)

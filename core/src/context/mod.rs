@@ -197,6 +197,9 @@ impl Context {
         };
         self.time += delta_time;
         let mut res = ().into_data();
+        if self.is_double_speed_cycle() {
+            self.cartridge.clock();
+        }
         // Nothing happens while the CPU is stopped
         if matches!(state, CPUState::Stop) {
             return res;
