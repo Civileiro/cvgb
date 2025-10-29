@@ -2,7 +2,6 @@ const WRAM_ADDR_START: u16 = 0xC000;
 const WRAM_ADDR_END: u16 = 0xFE00;
 const WRAM_BANK_SIZE: u16 = 0x1000;
 const WRAM_SIZE: u16 = WRAM_BANK_SIZE * 8;
-const WRAM_ADDR_USABLE_BITS: u16 = 0x1FFF;
 
 #[derive(Debug)]
 pub struct WorkRam {
@@ -13,7 +12,7 @@ pub struct WorkRam {
 impl Default for WorkRam {
     fn default() -> Self {
         Self {
-            bank: Default::default(),
+            bank: 1,
             ram: vec![0; WRAM_SIZE.into()].into_boxed_slice(),
         }
     }
@@ -34,18 +33,20 @@ impl WorkRam {
         self.bank
     }
     pub fn write_svbk(&mut self, data: u8) {
-        self.bank = data & 0b111;
+        self.bank = (data & 0b111).max(1);
     }
     fn to_wram_addr(&self, addr: u16) -> u16 {
         debug_assert!(
             matches!(addr, WRAM_ADDR_START..WRAM_ADDR_END),
             "Invalid address for WRAM: {addr:04x}"
         );
-        let rel_addr = addr & WRAM_ADDR_USABLE_BITS;
-        if (rel_addr >> 12) & 1 != 0 {
-            ((self.bank as u16).max(1) << 12) | rel_addr
-        } else {
-            rel_addr
+        let rel_addr = addr & 0x0FFF;
+        match addr {
+            0xC000..0xD000 => rel_addr,
+            0xD000..0xE000 => rel_addr + (self.bank as u16) * WRAM_BANK_SIZE,
+            0xE000..0xF000 => rel_addr,
+            0xF000..0xFE00 => rel_addr + (self.bank as u16) * WRAM_BANK_SIZE,
+            _ => unreachable!(),
         }
     }
 }
