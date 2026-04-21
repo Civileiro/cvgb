@@ -13,13 +13,13 @@
 
         nativeLibs = with pkgs; [ pkg-config ];
         rpathLibs = with pkgs; [
-          xorg.libX11
-          # xorg.libXcursor
-          xorg.libXrandr
-          xorg.libXi
-          # xorg.libXinerama
-          # xorg.libXext
-          # xorg.libXxf86vm
+          libX11
+          # libXcursor
+          libXrandr
+          libXi
+          # libXinerama
+          # libXext
+          # libXxf86vm
           libxkbcommon
           libGL
           wayland
@@ -28,6 +28,7 @@
           vulkan-loader
           alsa-lib
           jack2
+          pipewire
         ];
 
       in {
