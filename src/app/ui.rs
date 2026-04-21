@@ -73,7 +73,7 @@ fn preview_dropped_files(ctx: &egui::Context) {
             egui::Id::new("file_drop_target"),
         ));
 
-        let screen_rect = ctx.screen_rect();
+        let screen_rect = ctx.content_rect();
         painter.rect_filled(screen_rect, 0.0, egui::Color32::from_black_alpha(192));
         painter.text(
             screen_rect.center(),
@@ -397,7 +397,7 @@ pub mod options_ui {
 
             let text_valid =
                 breakpoint_addr.is_empty() || u16::from_str_radix(breakpoint_addr, 16).is_ok();
-            let width = ui.fonts(|f| {
+            let width = ui.fonts_mut(|f| {
                 f.layout_no_wrap("0000".to_owned(), Default::default(), Default::default())
                     .rect
                     .width()

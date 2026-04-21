@@ -21,8 +21,11 @@ impl EguiRenderer {
         output_color_format: wgpu::TextureFormat,
     ) -> Self {
         let egui_ctx = egui::Context::default();
-
-        let renderer = egui_wgpu::Renderer::new(device, output_color_format, None, 1, true);
+        let renderer = egui_wgpu::Renderer::new(
+            device,
+            output_color_format,
+            egui_wgpu::RendererOptions::default(),
+        );
         let state = egui_winit::State::new(
             egui_ctx,
             egui::viewport::ViewportId::ROOT,
@@ -93,6 +96,7 @@ impl EguiRenderer {
             label: Some("egui main render pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: texture_view,
+                depth_slice: None,
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Load,
