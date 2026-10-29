@@ -97,10 +97,7 @@ impl AppState {
     fn advance_emulation_timed(&mut self, time: Duration) {
         puffin::profile_function!();
         let mut frame_duration = game_boy::SystemTime::from_seconds(time.as_secs_f64());
-        loop {
-            let Some(emu) = self.emulation_state.as_mut() else {
-                break;
-            };
+        while let Some(emu) = self.emulation_state.as_mut() {
             let (events, elapsed_time) = emu.advance(frame_duration);
             match self.receive_emulation_events(events) {
                 EmulationEventReaction::Continue => (),
