@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
 use super::{
-    Cpu, CpuContext,
-    opcode::{CBOpcode, Condition, Opcode},
+    Cpu, CpuContext, Event,
+    opcode::{CBOpcode, Condition, Opcode, R8},
     registers::{Reg8, Reg16},
 };
 
@@ -40,6 +40,9 @@ impl Execute<Opcode> for Cpu {
                 if dest != src {
                     self.ld8(ctx, dest, src)
                 } else {
+                    if matches!((dest, src), (R8::Reg(Reg8::B), R8::Reg(Reg8::B))) {
+                        ctx.signal_event(Event::Breakpoint);
+                    }
                     self.cycle_prefetch(ctx);
                 }
             }

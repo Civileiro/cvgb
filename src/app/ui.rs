@@ -95,7 +95,7 @@ pub mod options_ui {
     #[derive(Debug, Default)]
     pub struct OptionsUiState {
         menu: Menu,
-        breakpoint_enabled: bool,
+        pub breakpoint_enabled: bool,
         breakpoint_addr: String,
     }
 

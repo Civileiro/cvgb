@@ -6,8 +6,14 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
         pkgs = import nixpkgs { inherit system; };
 
@@ -30,28 +36,33 @@
           jack2
           pipewire
         ];
+        devLibs = with pkgs; [
+          wla-dx
+        ];
 
-      in {
+      in
+      {
         packages.default = pkgs.rustPlatform.buildRustPackage rec {
           pname = "cvgb";
           version = "0.1.0";
           src = ./.;
 
-          cargoLock = { lockFile = ./Cargo.lock; };
+          cargoLock = {
+            lockFile = ./Cargo.lock;
+          };
 
           nativeBuildInputs = nativeLibs;
           buildInputs = rpathLibs;
 
           postFixup = with pkgs; ''
-            patchelf --add-rpath ${
-              lib.makeLibraryPath rpathLibs
-            } $out/bin/${pname}
+            patchelf --add-rpath ${lib.makeLibraryPath rpathLibs} $out/bin/${pname}
           '';
         };
 
         devShells.default = pkgs.mkShell {
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath rpathLibs;
-          buildInputs = nativeLibs ++ rpathLibs;
+          buildInputs = nativeLibs ++ rpathLibs ++ devLibs;
         };
-      });
+      }
+    );
 }

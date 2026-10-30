@@ -120,7 +120,7 @@ impl AppState {
             self.game_state.new_game_frame_requested = true;
             self.audio_driver.signal_vblank();
         }
-        if events.has_breakpoint() {
+        if events.has_breakpoint() && self.options_ui_state.breakpoint_enabled {
             log::debug!("Reached breakpoint, pausing emulation");
             res = EmulationEventReaction::Pause;
         }
