@@ -76,12 +76,13 @@ impl AppState {
             .and_then(|mut rfb| rfb.take())
         {
             self.game_state.paused = self.app_config.start_paused;
-            match game_boy::System::new(rom_file) {
-                Ok(mut emu) => {
+            match game_boy::Cartridge::from_rom(rom_file) {
+                Ok(cartridge) => {
+                    let mut emu = game_boy::System::new(cartridge, true);
                     self.audio_driver.set_gb_output(emu.get_audio_output());
                     self.emulation_state = Some(emu)
                 }
-                Err(err) => log::warn!("Couldn't start emulation from file: {err}"),
+                Err(err) => log::warn!("Couldn't parse rom header: {err}"),
             }
         }
         if let Some(emu) = self.emulation_state.as_mut() {

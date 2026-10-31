@@ -11,6 +11,8 @@ use ppu::{Ppu, PpuContext};
 use timer::Timer;
 use wram::WorkRam;
 
+use crate::context::serial::{SerialContext, SerialPort};
+
 use super::{
     BootRom,
     cartridge::Cartridge,
@@ -28,6 +30,7 @@ mod key1;
 mod oam_dma;
 mod p1;
 mod ppu;
+mod serial;
 mod timer;
 mod wram;
 
@@ -46,6 +49,7 @@ pub struct Context {
     wram: WorkRam,
     p1: P1,
     timer: Timer,
+    serial: SerialPort,
     apu: Apu,
     key1: Key1,
     hram: HighRam,
@@ -116,6 +120,7 @@ impl Context {
             wram: Default::default(),
             p1: Default::default(),
             timer: Default::default(),
+            serial: Default::default(),
             apu: Default::default(),
             key1: Default::default(),
             hram: Default::default(),
@@ -144,6 +149,9 @@ impl Context {
     }
     pub fn get_audio_output(&mut self) -> AudioOutput {
         self.apu.get_audio_output()
+    }
+    pub fn get_serial_port_output(&mut self) -> Box<[u8]> {
+        self.serial.take_serial_output()
     }
     fn active_interrupts(&self) -> InterruptFlags {
         (Into::<u8>::into(self.interrupts) & Into::<u8>::into(self.interrupt_enable)).into()
@@ -174,6 +182,7 @@ enum CycleStage {
     AccessOamDma,
     AccessCartridge,
     AccessTimer,
+    AccessSerialPort,
     AccessApu,
     AccessWRam,
     AccessVRam,
@@ -250,6 +259,11 @@ impl Context {
             res = f(self).into_data()
         } else {
             self.cycle_timer();
+        }
+        if stage == CycleStage::AccessSerialPort {
+            res = f(self).into_data()
+        } else {
+            self.cycle_serial();
         }
         {
             // APU
@@ -330,6 +344,9 @@ impl Context {
     fn timer_cycle<T: IntoData>(&mut self, f: impl Fn(&mut Self) -> T) -> u8 {
         self.cycle(CycleStage::AccessTimer, CPUState::Normal, f)
     }
+    fn serial_cycle<T: IntoData>(&mut self, f: impl Fn(&mut Self) -> T) -> u8 {
+        self.cycle(CycleStage::AccessSerialPort, CPUState::Normal, f)
+    }
     fn apu_cycle<T: IntoData>(&mut self, f: impl Fn(&mut Self) -> T) -> u8 {
         self.cycle(CycleStage::AccessApu, CPUState::Normal, f)
     }
@@ -359,6 +376,14 @@ impl CpuContext for Context {
                 self.generic_cycle(|_| ())
             }
             0xFF00 => self.generic_cycle(|slf| slf.p1.read()),
+            0xFF01 => self.serial_cycle(|slf| {
+                let (serial, mut ctx) = slf.serial_ctx();
+                serial.cycle_read_serial_buffer(&mut ctx)
+            }),
+            0xFF02 => self.serial_cycle(|slf| {
+                let (serial, mut ctx) = slf.serial_ctx();
+                serial.cycle_read_serial_control(&mut ctx)
+            }),
             0xFF04 => self.timer_cycle(|slf| {
                 let (timer, mut ctx) = slf.timer_ctx();
                 timer.cycle_read_div(&mut ctx)
@@ -476,6 +501,14 @@ impl CpuContext for Context {
                 self.generic_cycle(|_| ())
             }
             0xFF00 => self.generic_cycle(|slf| slf.p1.write(data)),
+            0xFF01 => self.serial_cycle(|slf| {
+                let (serial, mut ctx) = slf.serial_ctx();
+                serial.cycle_write_serial_buffer(&mut ctx, data)
+            }),
+            0xFF02 => self.serial_cycle(|slf| {
+                let (serial, mut ctx) = slf.serial_ctx();
+                serial.cycle_write_serial_control(&mut ctx, data)
+            }),
             0xFF04 => self.timer_cycle(|slf| {
                 let (timer, mut ctx) = slf.timer_ctx();
                 timer.cycle_write_div(&mut ctx, data)
@@ -654,6 +687,36 @@ impl Context {
     fn cycle_timer(&mut self) {
         let (timer, mut ctx) = self.timer_ctx();
         timer.cycle(&mut ctx);
+    }
+}
+
+pub struct SerialContextImpl<'a> {
+    itrs: &'a mut InterruptFlags,
+    dmg_compatible: bool,
+}
+
+impl<'a> SerialContext for SerialContextImpl<'a> {
+    fn signal_serial_interrupt(&mut self) {
+        self.itrs.set_serial(true);
+    }
+
+    fn is_dmg_compatible(&self) -> bool {
+        self.dmg_compatible
+    }
+}
+
+impl Context {
+    fn serial_ctx(&'_ mut self) -> (&'_ mut SerialPort, SerialContextImpl<'_>) {
+        let dmg_compatible = self.dmg_compatible();
+        let ctx = SerialContextImpl {
+            itrs: &mut self.interrupts,
+            dmg_compatible,
+        };
+        (&mut self.serial, ctx)
+    }
+    fn cycle_serial(&mut self) {
+        let (serial, mut ctx) = self.serial_ctx();
+        serial.cycle(&mut ctx);
     }
 }
 

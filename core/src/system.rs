@@ -65,4 +65,7 @@ impl System {
     pub fn get_audio_output(&mut self) -> AudioOutput {
         self.context.get_audio_output()
     }
+    pub fn get_serial_port_output(&mut self) -> Box<[u8]> {
+        self.context.get_serial_port_output()
+    }
 }

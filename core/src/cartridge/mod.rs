@@ -8,7 +8,7 @@ pub type Rom = Box<[u8]>;
 
 #[derive(Debug)]
 pub struct Cartridge {
-    header: CartridgeHeader,
+    pub header: CartridgeHeader,
     memory: CartridgeMemory,
     mbc: Option<MemoryBankController>,
 }
