@@ -1,7 +1,5 @@
 use std::{path::PathBuf, time::Duration};
 
-use game_boy::Cartridge;
-
 macro_rules! testcases {
     (
         $name:ident($path:expr);
@@ -114,7 +112,7 @@ fn mooneye_test(name: &str) {
     let test_file = format!("../external/mooneye-test-suite/build/{}.gb", name);
     let rom_path = PathBuf::from(&test_file);
     let rom = std::fs::read(rom_path).unwrap().into_boxed_slice();
-    let cartridge = Cartridge::from_rom(rom).unwrap();
+    let cartridge = game_boy::Cartridge::from_rom(rom).unwrap();
     let mut system = game_boy::System::new(cartridge, true);
 
     let max_duration = Duration::from_secs(10);

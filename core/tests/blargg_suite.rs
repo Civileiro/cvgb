@@ -1,7 +1,5 @@
 use std::{path::PathBuf, time::Duration};
 
-use game_boy::Cartridge;
-
 #[derive(Debug, Clone, Copy)]
 enum PassCondition {
     Memory,
@@ -114,7 +112,7 @@ fn blargg_test(name: &str, pass_condition: PassCondition) {
     let test_file = format!("../external/blargg-test-suite/{}.gb", name);
     let rom_path = PathBuf::from(&test_file);
     let rom = std::fs::read(rom_path).unwrap().into_boxed_slice();
-    let mut cartridge = Cartridge::from_rom(rom).unwrap();
+    let mut cartridge = game_boy::Cartridge::from_rom(rom).unwrap();
     if cartridge.header.ram_size == 0x00 {
         cartridge.header.ram_size = 0x01;
     }

@@ -38,6 +38,7 @@
         ];
         devLibs = with pkgs; [
           wla-dx
+          rgbds
           pre-commit
         ];
 
