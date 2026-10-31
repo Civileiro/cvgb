@@ -8,11 +8,11 @@ macro_rules! testcases {
     )*
   ) => {
     mod $name {
-      use super::run_test;
+      use super::mooneye_test;
 
         #[test]
         fn mooneye_test_suite() {
-          run_test($path);
+          mooneye_test($path);
         }
     }
     $(
@@ -56,13 +56,13 @@ testcases! {
   interrupts_ie_push("acceptance/interrupts/ie_push");
   oam_dma_basic("acceptance/oam_dma/basic");
   oam_dma_reg_read("acceptance/oam_dma/reg_read");
-  // ppu_intr_2_0_timing("acceptance/ppu/intr_2_0_timing");
-  // ppu_intr_2_mode0_timing("acceptance/ppu/intr_2_mode0_timing");
-  // ppu_stat_lyc_onoff("acceptance/ppu/stat_lyc_onoff");
-  // ppu_intr_2_mode0_timing_sprites("acceptance/ppu/intr_2_mode0_timing_sprites");
-  // ppu_intr_2_mode3_timing("acceptance/ppu/intr_2_mode3_timing");
-  // ppu_intr_2_oam_ok_timing("acceptance/ppu/intr_2_oam_ok_timing");
-  // ppu_stat_irq_blocking("acceptance/ppu/stat_irq_blocking");
+  ppu_intr_2_0_timing("acceptance/ppu/intr_2_0_timing");
+  ppu_intr_2_mode0_timing("acceptance/ppu/intr_2_mode0_timing");
+  ppu_stat_lyc_onoff("acceptance/ppu/stat_lyc_onoff");
+  ppu_intr_2_mode0_timing_sprites("acceptance/ppu/intr_2_mode0_timing_sprites");
+  ppu_intr_2_mode3_timing("acceptance/ppu/intr_2_mode3_timing");
+  ppu_intr_2_oam_ok_timing("acceptance/ppu/intr_2_oam_ok_timing");
+  ppu_stat_irq_blocking("acceptance/ppu/stat_irq_blocking");
   timer_div_write("acceptance/timer/div_write");
   timer_rapid_toggle("acceptance/timer/rapid_toggle");
   timer_tim00("acceptance/timer/tim00");
@@ -76,45 +76,45 @@ testcases! {
   timer_tima_reload("acceptance/timer/tima_reload");
   timer_tima_write_reloading("acceptance/timer/tima_write_reloading");
   timer_tma_write_reloading("acceptance/timer/tma_write_reloading");
-  // mbc1_bits_ramg("emulator-only/mbc1/bits_ramg");
-  // mbc1_bits_bank1("emulator-only/mbc1/bits_bank1");
-  // mbc1_bits_bank2("emulator-only/mbc1/bits_bank2");
-  // mbc1_bits_mode("emulator-only/mbc1/bits_mode");
-  // mbc1_rom_512kb("emulator-only/mbc1/rom_512kb");
-  // mbc1_rom_1mb("emulator-only/mbc1/rom_1Mb");
-  // mbc1_rom_2mb("emulator-only/mbc1/rom_2Mb");
-  // mbc1_rom_4mb("emulator-only/mbc1/rom_4Mb");
-  // mbc1_rom_8mb("emulator-only/mbc1/rom_8Mb");
-  // mbc1_rom_16mb("emulator-only/mbc1/rom_16Mb");
-  // mbc1_ram_64kb("emulator-only/mbc1/ram_64kb");
-  // mbc1_ram_25kb("emulator-only/mbc1/ram_256kb");
-  // mbc1_multicart_rom_8mb("emulator-only/mbc1/multicart_rom_8Mb");
-  // mbc2_bits_ramg("emulator-only/mbc2/bits_ramg");
-  // mbc2_bits_romb("emulator-only/mbc2/bits_romb");
-  // mbc2_bits_unused("emulator-only/mbc2/bits_unused");
-  // mbc2_rom_512kb("emulator-only/mbc2/rom_512kb");
-  // mbc2_rom_1mb("emulator-only/mbc2/rom_1Mb");
-  // mbc2_rom_2mb("emulator-only/mbc2/rom_2Mb");
-  // mbc2_ram("emulator-only/mbc2/ram");
-  // mbc5_rom_512kb("emulator-only/mbc5/rom_512kb");
-  // mbc5_rom_1mb("emulator-only/mbc5/rom_1Mb");
-  // mbc5_rom_2mb("emulator-only/mbc5/rom_2Mb");
-  // mbc5_rom_4mb("emulator-only/mbc5/rom_4Mb");
-  // mbc5_rom_8mb("emulator-only/mbc5/rom_8Mb");
-  // mbc5_rom_16mb("emulator-only/mbc5/rom_16Mb");
-  // mbc5_rom_32mb("emulator-only/mbc5/rom_32Mb");
-  // mbc5_rom_64mb("emulator-only/mbc5/rom_64Mb");
+  mbc1_bits_ramg("emulator-only/mbc1/bits_ramg");
+  mbc1_bits_bank1("emulator-only/mbc1/bits_bank1");
+  mbc1_bits_bank2("emulator-only/mbc1/bits_bank2");
+  mbc1_bits_mode("emulator-only/mbc1/bits_mode");
+  mbc1_rom_512kb("emulator-only/mbc1/rom_512kb");
+  mbc1_rom_1mb("emulator-only/mbc1/rom_1Mb");
+  mbc1_rom_2mb("emulator-only/mbc1/rom_2Mb");
+  mbc1_rom_4mb("emulator-only/mbc1/rom_4Mb");
+  mbc1_rom_8mb("emulator-only/mbc1/rom_8Mb");
+  mbc1_rom_16mb("emulator-only/mbc1/rom_16Mb");
+  mbc1_ram_64kb("emulator-only/mbc1/ram_64kb");
+  mbc1_ram_25kb("emulator-only/mbc1/ram_256kb");
+  mbc1_multicart_rom_8mb("emulator-only/mbc1/multicart_rom_8Mb");
+  mbc2_bits_ramg("emulator-only/mbc2/bits_ramg");
+  mbc2_bits_romb("emulator-only/mbc2/bits_romb");
+  mbc2_bits_unused("emulator-only/mbc2/bits_unused");
+  mbc2_rom_512kb("emulator-only/mbc2/rom_512kb");
+  mbc2_rom_1mb("emulator-only/mbc2/rom_1Mb");
+  mbc2_rom_2mb("emulator-only/mbc2/rom_2Mb");
+  mbc2_ram("emulator-only/mbc2/ram");
+  mbc5_rom_512kb("emulator-only/mbc5/rom_512kb");
+  mbc5_rom_1mb("emulator-only/mbc5/rom_1Mb");
+  mbc5_rom_2mb("emulator-only/mbc5/rom_2Mb");
+  mbc5_rom_4mb("emulator-only/mbc5/rom_4Mb");
+  mbc5_rom_8mb("emulator-only/mbc5/rom_8Mb");
+  mbc5_rom_16mb("emulator-only/mbc5/rom_16Mb");
+  mbc5_rom_32mb("emulator-only/mbc5/rom_32Mb");
+  mbc5_rom_64mb("emulator-only/mbc5/rom_64Mb");
   misc_boot_regs_cgb("misc/boot_regs-cgb");
   misc_bits_unused_hwio("misc/bits/unused_hwio-C");
 }
 
-fn run_test(name: &str) {
+fn mooneye_test(name: &str) {
     let test_file = format!("../external/mooneye-test-suite/build/{}.gb", name);
     let rom_path = PathBuf::from(&test_file);
     let rom = std::fs::read(rom_path).unwrap().into_boxed_slice();
     let mut system = game_boy::System::new(rom, true).unwrap();
 
-    let max_duration = Duration::from_secs(5);
+    let max_duration = Duration::from_secs(10);
 
     let mut frame_duration = game_boy::SystemTime::from_seconds(max_duration.as_secs_f64());
     let mut registers = None;
@@ -124,7 +124,7 @@ fn run_test(name: &str) {
             registers = Some(system.get_cpu().get_registers());
             break;
         }
-        if elapsed_time > frame_duration {
+        if elapsed_time >= frame_duration {
             break;
         } else {
             frame_duration -= elapsed_time
