@@ -167,5 +167,5 @@ fn blargg_test(name: &str, pass_condition: PassCondition) {
             serial_output.push(data as char);
         }
     }
-    panic!("Test failure\n{serial_output}");
+    panic!("Test failed\n{serial_output}");
 }

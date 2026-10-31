@@ -148,7 +148,7 @@ fn mooneye_test(name: &str) {
                 || regs.l != 34
             {
                 let serial_output = system.get_serial_port_output();
-                panic!("Hardware test failed (Serial = '{:?}')", serial_output);
+                panic!("Test failed (Serial = '{:?}')", serial_output);
             }
         }
     }

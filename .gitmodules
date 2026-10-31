@@ -7,3 +7,6 @@
 [submodule "external/age-test-suite"]
 	path = external/age-test-suite
 	url = https://github.com/c-sp/age-test-roms
+[submodule "external/gbmicro-test-suite"]
+	path = external/gbmicro-test-suite
+	url = https://github.com/aappleby/GBMicrotest

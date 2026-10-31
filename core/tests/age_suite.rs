@@ -96,7 +96,7 @@ fn age_test(name: &str) {
                 || regs.h != 21
                 || regs.l != 34
             {
-                panic!("Hardware test failed");
+                panic!("Test failed");
             }
         }
     }
