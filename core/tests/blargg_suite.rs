@@ -109,7 +109,7 @@ testcases! {
 }
 
 fn blargg_test(name: &str, pass_condition: PassCondition) {
-    let test_file = format!("../external/blargg-test-suite/{}.gb", name);
+    let test_file = format!("../tests/roms/blargg/{}.gb", name);
     let rom_path = PathBuf::from(&test_file);
     let rom = std::fs::read(rom_path).unwrap().into_boxed_slice();
     let mut cartridge = game_boy::Cartridge::from_rom(rom).unwrap();

@@ -63,7 +63,7 @@ testcases! {
 }
 
 fn age_test(name: &str) {
-    let test_file = format!("../external/age-test-suite/build/{}.gb", name);
+    let test_file = format!("../tests/roms/age-test-roms/{}.gb", name);
     let rom_path = PathBuf::from(&test_file);
     let rom = std::fs::read(rom_path).unwrap().into_boxed_slice();
     let cartridge = game_boy::Cartridge::from_rom(rom).unwrap();
@@ -72,7 +72,7 @@ fn age_test(name: &str) {
     let max_duration = Duration::from_secs(10);
 
     let mut frame_duration = game_boy::SystemTime::from_seconds(max_duration.as_secs_f64());
-    let mut registers = None;
+    let registers;
     loop {
         let (events, elapsed_time) = system.advance(frame_duration);
         if events.has_breakpoint() {
@@ -80,7 +80,7 @@ fn age_test(name: &str) {
             break;
         }
         if elapsed_time >= frame_duration {
-            break;
+            panic!("Test did not finish");
         } else {
             frame_duration -= elapsed_time
         }

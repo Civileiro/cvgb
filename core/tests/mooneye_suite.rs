@@ -109,7 +109,7 @@ testcases! {
 }
 
 fn mooneye_test(name: &str) {
-    let test_file = format!("../external/mooneye-test-suite/build/{}.gb", name);
+    let test_file = format!("../tests/roms/mooneye-test-suite/{}.gb", name);
     let rom_path = PathBuf::from(&test_file);
     let rom = std::fs::read(rom_path).unwrap().into_boxed_slice();
     let cartridge = game_boy::Cartridge::from_rom(rom).unwrap();
