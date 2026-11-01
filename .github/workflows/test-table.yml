@@ -1,0 +1,39 @@
+name: Test table
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: tests/roms
+          key: gbroms-${{ hashFiles('scripts/fetch_test_roms.sh') }}
+
+      - name: Fetch test ROMs
+        run: ./scripts/fetch_test_roms.sh
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@nextest
+
+      - name: Run tests
+        run: cargo nextest run --release --profile ci --no-fail-fast --run-ignored all -p cvgb-core
+        continue-on-error: true
+
+      - name: Update README
+        run: python3 scripts/test_table.py
+
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git diff --cached --quiet || (git commit -m "docs: update test results [skip ci]" && git push)
