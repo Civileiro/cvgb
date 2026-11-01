@@ -18,9 +18,9 @@ Audio support is really janky.
 | age_test_roms | 0 | 29 | 0% |
 | blargg | 31 | 40 | 78% |
 | cvgb-core | 2006 | 2006 | 100% |
-| gbmicrotest | 95 | 513 | 19% |
+| gbmicrotest | 94 | 513 | 18% |
 | mooneye_test_suite | 46 | 83 | 55% |
-| All | 2178 | 2671 | 82% |
+| All | 2177 | 2671 | 82% |
 <!-- TESTS:END -->
 
 ## Run
