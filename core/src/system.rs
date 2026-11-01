@@ -1,3 +1,5 @@
+use crate::cpu::registers::{Flags, Registers};
+
 use super::{
     Cartridge, Input, Rom,
     cartridge::CartridgeParseError,
@@ -14,12 +16,27 @@ pub struct System {
 }
 
 impl System {
-    pub fn new(rom: Rom) -> Result<Self, CartridgeParseError> {
-        let cartridge = Cartridge::from_rom(rom)?;
-        Ok(Self {
-            cpu: Default::default(),
-            context: Context::new(cartridge),
-        })
+    pub fn new(cartridge: Cartridge, bootrom_enabled: bool) -> Self {
+        Self {
+            cpu: if bootrom_enabled {
+                Default::default()
+            } else {
+                let regs = Registers {
+                    a: 0x11,
+                    f: Flags::default().with_z(true),
+                    b: 0x00,
+                    c: 0x00,
+                    d: 0xFF,
+                    e: 0x56,
+                    h: 0x00,
+                    l: 0x0D,
+                    pc: 0x0100,
+                    sp: 0xFFFE,
+                };
+                Cpu::with_registers(regs)
+            },
+            context: Context::new(cartridge, bootrom_enabled),
+        }
     }
     pub fn get_cpu(&self) -> &Cpu {
         &self.cpu

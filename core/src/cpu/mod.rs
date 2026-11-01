@@ -67,6 +67,13 @@ impl Cpu {
     pub fn state(&self) -> CPUState {
         self.state
     }
+
+    pub fn with_registers(regs: Registers) -> Cpu {
+        Cpu {
+            regs,
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

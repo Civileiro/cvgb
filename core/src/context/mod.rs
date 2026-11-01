@@ -107,13 +107,13 @@ impl IntoData for InterruptFlags {
 }
 
 impl Context {
-    pub fn new(cartridge: Cartridge) -> Self {
+    pub fn new(cartridge: Cartridge, bootrom_enable: bool) -> Self {
         Self {
             time: Default::default(),
             events: Default::default(),
             dmg_compatibility: false,
             cartridge,
-            boot_rom: BootRom::new(),
+            boot_rom: BootRom::new(bootrom_enable),
             ppu: Default::default(),
             oam_dma: Default::default(),
             hdma: Default::default(),

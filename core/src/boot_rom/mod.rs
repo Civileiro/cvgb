@@ -5,11 +5,11 @@ pub struct BootRom {
 }
 
 impl BootRom {
-    pub fn new() -> Self {
+    pub fn new(enabled: bool) -> Self {
         let rom_bytes = include_bytes!("cgb.bin");
         Self {
             rom: rom_bytes,
-            enabled: true,
+            enabled,
         }
     }
     pub fn disable(&mut self) {
@@ -20,5 +20,11 @@ impl BootRom {
     }
     pub fn read(&self, addr: u16) -> u8 {
         self.rom[addr as usize]
+    }
+}
+
+impl Default for BootRom {
+    fn default() -> Self {
+        Self::new(true)
     }
 }
