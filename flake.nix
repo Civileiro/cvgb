@@ -37,8 +37,6 @@
           pipewire
         ];
         devLibs = with pkgs; [
-          wla-dx
-          rgbds
           pre-commit
         ];
 
@@ -63,7 +61,10 @@
 
         devShells.default = pkgs.mkShell {
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath rpathLibs;
-          buildInputs = nativeLibs ++ rpathLibs ++ devLibs;
+          nativeBuildInputs = with pkgs; [
+            cargo-nextest
+          ] ++ nativeLibs;
+          buildInputs = rpathLibs ++ devLibs;
         };
       }
     );
